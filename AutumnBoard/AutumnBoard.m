@@ -230,6 +230,9 @@ static NSURL *URLForUTIFile(NSString *name) {
 }
 
 static NSURL *customIconForUTI(NSString *uti) {
+    if (!uti)
+        return nil;
+    
     // step 1, check if we have the actual uti.icns
     NSURL *tentativeURL = URLForUTIFile(uti);
     NSFileManager *manager = [NSFileManager defaultManager];
@@ -262,15 +265,16 @@ OPHook6(void *, CreateWithFileInfo, FSRef const *, arg0, unsigned long, arg1, un
 //    } else {
 //        NSLog(@"didnt get binding for %@", targetURL);
 //    }
-    
+
     NSURL *customURL = customIconForURL(targetURL);
     if (customURL) {
         return CreateWithResourceURL((__bridge CFURLRef)customURL, arg5);
     } else {
         // try a UTI
         NSString *uti = UTIForURL((__bridge CFURLRef)(targetURL));
-        if (uti) {
-            return CreateWithUTI((__bridge CFStringRef)uti, arg1);
+        NSURL *utiURL = customIconForUTI(uti);
+        if (utiURL) {
+            return CreateWithResourceURL((__bridge CFURLRef)utiURL, arg5);
         }
     }
 
@@ -289,6 +293,7 @@ OPHook2(void *, CreateWithURL, CFURLRef, url, BOOL, arg1) {
 //    }
 //    
     NSURL *customURL = customIconForURL((__bridge NSURL *)(url));
+    ABLog("Getting Icon For URL: %@", url);
     if (customURL) {
         ABLog("got custom URL for URL: %@, %@", customURL, url);
         return CreateWithResourceURL((__bridge CFURLRef)customURL, arg1);
