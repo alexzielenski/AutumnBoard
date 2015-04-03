@@ -24,5 +24,12 @@
 	<string>Copyright © 2015 Alex Zielenski. All rights reserved.</string>
 	<key>NSPrincipalClass</key>
 	<string></string>
+	<key>OPFilters</key>
+	<dict>
+		<key>Bundles</key>
+		<array>
+			<string>com.apple.Foundation</string>
+		</array>
+	</dict>
 </dict>
 </plist>

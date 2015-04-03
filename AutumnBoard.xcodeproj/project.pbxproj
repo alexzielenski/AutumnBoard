@@ -6,9 +6,18 @@
 	objectVersion = 46;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FAE4FABF1ACC885D003283C5 /* Opee.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FAE4FABE1ACC885D003283C5 /* Opee.framework */; };
+		FAE4FAC11ACC886D003283C5 /* AutumnBoard.m in Sources */ = {isa = PBXBuildFile; fileRef = FAE4FAC01ACC886D003283C5 /* AutumnBoard.m */; };
+		FAE4FAC51ACC8BD5003283C5 /* IconServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FAE4FAC41ACC8BD5003283C5 /* IconServices.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		FAE4FAB41ACC87B2003283C5 /* AutumnBoard.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AutumnBoard.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
 		FAE4FAB81ACC87B2003283C5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		FAE4FABE1ACC885D003283C5 /* Opee.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Opee.framework; path = ../../../../../../Library/Frameworks/Opee.framework; sourceTree = "<group>"; };
+		FAE4FAC01ACC886D003283C5 /* AutumnBoard.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AutumnBoard.m; sourceTree = "<group>"; };
+		FAE4FAC41ACC8BD5003283C5 /* IconServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IconServices.framework; path = ../../../../../../System/Library/PrivateFrameworks/IconServices.framework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -16,6 +25,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FAE4FAC51ACC8BD5003283C5 /* IconServices.framework in Frameworks */,
+				FAE4FABF1ACC885D003283C5 /* Opee.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -25,6 +36,8 @@
 		FAE4FAAB1ACC87B2003283C5 = {
 			isa = PBXGroup;
 			children = (
+				FAE4FAC41ACC8BD5003283C5 /* IconServices.framework */,
+				FAE4FABE1ACC885D003283C5 /* Opee.framework */,
 				FAE4FAB61ACC87B2003283C5 /* AutumnBoard */,
 				FAE4FAB51ACC87B2003283C5 /* Products */,
 			);
@@ -42,6 +55,7 @@
 			isa = PBXGroup;
 			children = (
 				FAE4FAB71ACC87B2003283C5 /* Supporting Files */,
+				FAE4FAC01ACC886D003283C5 /* AutumnBoard.m */,
 			);
 			path = AutumnBoard;
 			sourceTree = "<group>";
@@ -120,6 +134,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FAE4FAC11ACC886D003283C5 /* AutumnBoard.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -130,6 +145,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
@@ -161,7 +177,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.10;
 				MTL_ENABLE_DEBUG_INFO = YES;
-				ONLY_ACTIVE_ARCH = YES;
+				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -170,6 +186,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
@@ -204,8 +221,13 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+					"$(SYSTEM_LIBRARY_DIR)/PrivateFrameworks",
+				);
 				INFOPLIST_FILE = AutumnBoard/Info.plist;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Opee/Extensions";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				WRAPPER_EXTENSION = bundle;
@@ -216,10 +238,17 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
+				DEPLOYMENT_LOCATION = YES;
+				DSTROOT = /;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+					"$(SYSTEM_LIBRARY_DIR)/PrivateFrameworks",
+				);
 				INFOPLIST_FILE = AutumnBoard/Info.plist;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Opee/Extensions";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
+				SKIP_INSTALL = NO;
 				WRAPPER_EXTENSION = bundle;
 			};
 			name = Release;
@@ -243,6 +272,7 @@
 				FAE4FABD1ACC87B2003283C5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
