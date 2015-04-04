@@ -152,12 +152,10 @@ NSURL *replacementURLForURL(NSURL *url) {
     
     // Step 1, check absolute paths
     NSFileManager *manager = [NSFileManager defaultManager];
-    BOOL isDir = NO;
-    NSURL *testURL = [ThemePath URLByAppendingPathComponent:url.path];
-    if ([manager fileExistsAtPath:testURL.path isDirectory:&isDir] && !isDir) {
-        return nil;
+    NSURL *testURL = customIconForURL(url);
+    if (testURL)
         return testURL;
-    }
+    
     // Step 2, traverse down path until we get a bundle with an identifier
     BOOL foundBundle = NO;
     NSBundle *bndl = nil;
