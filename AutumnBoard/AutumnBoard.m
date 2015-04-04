@@ -37,6 +37,8 @@ syslog(level, "%s", _utf8); \
 
 //    #define OPLog(TYPE, fmt, ...) CFLog(TYPE, CFSTR("Opee: " fmt), ##__VA_ARGS__)
 
+#pragma mark - ABBinding
+
 #define ABLog(FORMAT, ...) OPLog(OPLogLevelNotice, FORMAT, ## __VA_ARGS__)
 
 static UInt64 ABBindingGetMagic(void *binding) {
@@ -90,10 +92,6 @@ static NSString *ABStringFromOSType(OSType type) {
     return (__bridge_transfer NSString *)UTCreateStringForOSType(type);
 }
 
-static void (*ReleaseBinding)(void *binding);
-static void (*FindAndRelease)(IconRef icon);
-static void *(*FindAndGetRetainCount)(IconRef ref);
-
 static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) {
     IconRef destIcon = ABBindingGetIconRef(destination);
     uint32_t destMagic = ABBindingGetMagic(destination) & 0xfff;
@@ -109,9 +107,10 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
     // 0x12e830: Variant
     // 0x1298a0: SideFault
     // 0x12e8e0: Composite
-    
+    ABLogBinding(destination);
+
     if (destMagic == 0x6d0) {
-        ABLogBinding(destination);
+        ABLog("Custom Binding at %@", url);
     }
     
     //!TODO: Create a mapping for all OSTypes in IconsCore to a UTI frm CoreTypes.bundle
@@ -120,7 +119,9 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
     // We don't want to do this for the bundle binding because they have a different
     // source of icons (they are covered in the nameOfIconFile and customIconForURL)
     // if their icons don't exist
-    if (destMagic != 0x780 && !custom) {
+    if (destMagic != 0x780 &&
+        destMagic != 0x8e0 &&
+        !custom) {
         //!TODO: if this is a CompositeBinding then we want to set the background IconRef
         //!rather than replacing it
         
@@ -384,7 +385,7 @@ static NSURL *URLForUTIFile(NSString *name) {
 }
 
 static NSURL *customIconForUTI(NSString *uti) {
-    if (!uti)
+    if (!uti || UTTypeIsDynamic((__bridge CFStringRef)(uti)))
         return nil;
     
     // step 1, check if we have the actual uti.icns
@@ -452,40 +453,7 @@ OPHook6(void *, CreateWithFileInfo, FSRef const *, ref, UniCharCount, fileNameLe
         customBinding = CreateWithResourceURL((__bridge CFURLRef)customURL, arg5);
     }
 
-    void *rtn0 = OPOldCall(ref, fileNameLength, fileName, inWhichInfo, outInfo, arg5);
-
-//    unsigned int *rtn = rtn0;
-
-    
-   /* if (!customBinding) {
-        unsigned long long magic = *((unsigned long long *)rtn);
-        unsigned int type = (unsigned int)(magic & 0xfff);
-    
-        ABLog("Magic SHIT for %@: %x %x", targetURL, (unsigned int)(magic & 0xfff), 0x560);
-        if (type == 0xb80) {
-            ABLog("It's a UTI");
-            
-        } else if (type == 0x560) {
-            CFStringRef str = *((CFStringRef *)rtn + 8);
-            ABLog("Magic String: %@", str);
-        } else if (type == 0x780) {
-            CFTypeRef unk = *((CFTypeRef *)rtn + 8);
-            ABLog("Magic Value: %@", unk);
-        }
-    }
-    void *iconRef = *(void **)((uint8_t *)rtn0 + 0x8);
-    ABLog("Icon Ref: %p, %d", iconRef, IsValidIconRef(iconRef));
-    */
-//    RemoveIconRefOverride(iconRef);
-    
-//    unsigned int upper = (magic & 0xffff0000);
-//    unsigned int lower = (magic & 0xffff);
-//    ABLog("Magic for %@ is:", targetURL);
-//    for (int x = -4; x <= 8; x++) {
-//        ABLog("%x", *(rtn + x));
-//    }
-    
-    return ABPairBindingsWithURL(rtn0, customBinding, targetURL);
+    return ABPairBindingsWithURL(OPOldCall(ref, fileNameLength, fileName, inWhichInfo, outInfo, arg5), customBinding, targetURL);
 }
 
 static void *(*CreateWithURL)(CFURLRef url, BOOL arg1);
@@ -509,14 +477,6 @@ OPHook2(void *, CreateWithUTI, CFStringRef, uti, BOOL, arg1) {
     
     return ABPairBindings(OPOldCall(uti, arg1), customBinding);
 }
-
-// I think these bools tell it to cache the binding
-void *(*CreateWithResourceURLAndResourceID)(CFURLRef url, short resourceID, BOOL store);
-//OPHook3(void *, CreateWithResourceURLAndResourceID, CFURLRef, url, short, resourceID, BOOL, store) {
-//    ABLog("Create with resource url: %@, %d", url, resourceID);
-//    return OPOldCall(url, resourceID, store);
-//}
-//
 
 void *(*CreateWithBookmarkData)(CFDataRef bookmarkData, BOOL arg1);
 OPHook2(void *, CreateWithBookmarkData, CFDataRef, bookmarkData, BOOL, arg1) {
@@ -588,15 +548,7 @@ OPHook4(void *, CreateWithTypeInfo, OSType, creator, OSType, iconType, CFStringR
 
 void *(*CreateWithFolder)(SInt16 vRefNum, SInt32 parentFolderID, SInt32 folderID, SInt8 attributes, SInt8 accessPrivileges, BOOL arg5);
 OPHook6(void *, CreateWithFolder, SInt16, vRefNum, SInt32, parentFolderID, SInt32, folderID, SInt8, attributes, SInt8, accessPrivileges, BOOL, arg5) {
-    
-//    ABLog("Create with folder");
-//    NSURL *folderURL = customIconForUTI(@"public.folder");
-    void *customBinding = NULL;
-//    if (folderURL) {
-//        customBinding = CreateWithResourceURL((__bridge CFURLRef)folderURL, arg5);
-//    }
-//
-    return ABPairBindings(OPOldCall(vRefNum, parentFolderID, folderID, attributes, accessPrivileges, arg5), customBinding);
+    return ABPairBindings(OPOldCall(vRefNum, parentFolderID, folderID, attributes, accessPrivileges, arg5), NULL);
 }
 
 void *(*CreateWithDeviceID)(const char *device, BOOL arg1);
@@ -604,10 +556,6 @@ OPHook2(void *, CreateWithDeviceID, const char *, device, BOOL, arg1) {
     ABLog("Create with Device: %s", device);
     return ABPairBindings(OPOldCall(device, arg1), NULL);
 }
-
-/*
-                      __ZN14BindingManager18CreateWithDeviceIDEPKcb:        // BindingManager::CreateWithDeviceID(char const*, bool)
- */
 
 #pragma mark URL Rerouting
 
@@ -647,21 +595,6 @@ OPHook4(CFURLRef, CFBundleCopyResourceURLInDirectory, CFURLRef, bundleURL, CFStr
     return finalURL;
 }
 
-// This is only used for CoreTypes.bundle
-// all resultant paths are relative to CoreTypes.bundle (including /Contents/Resources etc.)
-CFStringRef (*__UTTypeCopyIconFileName)(CFStringRef arg0);
-OPHook1(CFStringRef, __UTTypeCopyIconFileName, CFStringRef, arg0) {
-//    NSURL *replaceURL = customIconForUTI((__bridge NSString *)arg0);
-    CFStringRef rtn = OPOldCall(arg0);
-    ABLog("orig: %@", rtn);
-//    if (replaceURL) {
-//        ABLog("copy type filename %@", arg0);
-//        ABLog("original %@ repalced with %@", OPOldCall(arg0), replaceURL.path);
-//        return (__bridge_retained CFURLRef)replaceURL.copy;
-//    }
-    return rtn;
-}
-
 OPHook1(CGDataProviderRef, CGDataProviderCreateWithFilename, const char *, filename) {
     NSURL *url = [NSURL fileURLWithPath:@(filename)];
     if ((url = replacementURLForURL(url))) {
@@ -693,24 +626,6 @@ OPHook4(CFDataRef, CFURLCreateData, CFAllocatorRef, allocator, CFURLRef, url, CF
     return OPOldCall(allocator, url, encoding, escapeWhitespace);
 }
 
-/*
-OPHook6(CFDataRef, CFURLCreateDataAndPropertiesFromResource, CFAllocatorRef, alloc, CFURLRef, url, CFDataRef *, resourceData, CFDictionaryRef *, properties, CFArrayRef, desiredProperties, SInt32 *, errorCode) {
-    if ([((__bridge NSURL *)url).pathExtension isEqualToString:@"icns"]) {
-        ABLog("Create Prop and Resrc %@", url);
-    }
-    
-    if (// CFBundleCopyInfoDictionary() calls this method so we probably want to avoid a stack overflow
-        ![((__bridge NSURL *)url).lastPathComponent isEqualToString:@"Info.plist"] &&
-        ![((__bridge NSURL *)url).lastPathComponent isEqualToString:@"Info-macos.plist"]) {
-        
-        NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
-        if (replacement)
-            url = (__bridge CFURLRef)replacement;
-    }
-    return OPOldCall(alloc, url, resourceData, properties, desiredProperties, errorCode);
-}
-*/
-
 OPHook2(CGImageSourceRef, CGImageSourceCreateWithURL, CFURLRef, url, CFDictionaryRef, options) {
     if ([((__bridge NSURL *)url).pathExtension isEqualToString:@"icns"]) {
         ABLog("Create image source %@", url);
@@ -723,22 +638,16 @@ OPHook2(CGImageSourceRef, CGImageSourceCreateWithURL, CFURLRef, url, CFDictionar
 }
 
 
-void (*CGImageReadCreateWithURL)(CFURLRef arg0, int arg1, int arg2);
-/*
- OPHook3(void, CGImageReadCreateWithURL, CFURLRef, url, int, arg1, int, arg2) {
-//    ABLog("Read %@", url);
-    if ([((__bridge NSURL *)url).pathExtension isEqualToString:@"icns"]) {
-        ABLog("Image Read %@", url);
-    }
-//
-    NSURL *replacement = replacementURLForURL(((__bridge NSURL *)url));
-//    ABLog("Read %@ and replace %@", url, replacement);
-    if (replacement)
-        url = (__bridge CFURLRef)replacement;
-    
-    OPOldCall(url, arg1, arg2);
+// This is only used for CoreTypes.bundle
+// all resultant paths are relative to CoreTypes.bundle (including /Contents/Resources etc.)
+CFStringRef (*__UTTypeCopyIconFileName)(CFStringRef arg0);
+OPHook1(CFStringRef, __UTTypeCopyIconFileName, CFStringRef, arg0) {
+    //    NSURL *replaceURL = customIconForUTI((__bridge NSString *)arg0);
+    CFStringRef rtn = OPOldCall(arg0);
+    ABLog("orig: %@", rtn);
+    return rtn;
 }
-*/
+
 
 #import <mach-o/dyld.h>
 
@@ -762,34 +671,26 @@ OPInitialize {
     }
     
     ThemePath = [NSURL fileURLWithPath:@"/Library/AutumnBoard/Themes/Fladder2"];
-    
-    ReleaseBinding = OPFindSymbol("__ZN14BindingManager7ReleaseEP7Bindingb");
-    FindAndRelease = OPFindSymbol("__ZN14BindingManager14FindAndReleaseEP13OpaqueIconRef");
-    FindAndGetRetainCount = OPFindSymbol("__ZN14BindingManager21FindAndGetRetainCountEP13OpaqueIconRef");
-    
+
     CreateWithBookmarkData = OPFindSymbol("__ZN14BindingManager22CreateWithBookmarkDataEPK8__CFDatab");
     CreateWithResourceURL = OPFindSymbol("__ZN14BindingManager21CreateWithResourceURLEPK7__CFURLb");
     CreateWithTypeInfo = OPFindSymbol("__ZN14BindingManager18CreateWithTypeInfoEjjPK10__CFStringb");
     CreateWithFileInfo = OPFindSymbol("__ZN14BindingManager18CreateWithFileInfoEPK5FSRefmPKtjPK13FSCatalogInfob");
     CreateWithURL = OPFindSymbol("__ZN14BindingManager13CreateWithURLEPK7__CFURLb");
     CreateWithUTI = OPFindSymbol("__ZN14BindingManager13CreateWithUTIEPK10__CFStringb");
-    CreateWithResourceURLAndResourceID = OPFindSymbol("__ZN14BindingManager34CreateWithResourceURLAndResourceIDEPK7__CFURLsb");
     CreateWithAliasData = OPFindSymbol("__ZN14BindingManager19CreateWithAliasDataEPK8__CFDatab");
     CreateWithFolder = OPFindSymbol("__ZN14BindingManager16CreateWithFolderEsiiaab");
     CreateWithLegacyIconRef = OPFindSymbol("__ZN14BindingManager23CreateWithLegacyIconRefEP13OpaqueIconRefb");
     CreateWithDeviceID = OPFindSymbol("__ZN14BindingManager18CreateWithDeviceIDEPKcb");
     
     __UTTypeCopyIconFileName = OPFindSymbol("__UTTypeCopyIconFileName");
-    CGImageReadCreateWithURL = OPFindSymbol("_CGImageReadCreateWithURL");
 
 //    OPHookFunction(__UTTypeCopyIconFileName);
-//    OPHookFunction(CFURLCreateDataAndPropertiesFromResource);
-//    OPHookFunction(FileInfoBinding);
-//    OPHookFunction(CGImageReadCreateWithURL);
     OPHookFunction(CGImageSourceCreateWithURL);
     OPHookFunction(CGDataProviderCreateWithFilename);
     OPHookFunction(CGDataProviderCreateWithURL);
     OPHookFunction(CFURLCreateData);
+    
     OPHookFunction(CFBundleCopyResourceURLInDirectory);
     OPHookFunction(CFBundleCopyResourceURL);
     
