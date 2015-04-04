@@ -45,7 +45,7 @@ OPHook4(CFURLRef, CFBundleCopyResourceURLInDirectory, CFURLRef, bundleURL, CFStr
         [((__bridge NSString *)resourceType) isEqualToString:@"icns"]) {
         ABLog("Directory: %@, %@, %@ (%@)", bundleURL, resourceName, resourceType, finalURL);
     }
-    
+        
     return finalURL;
 }
 

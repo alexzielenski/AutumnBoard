@@ -42,7 +42,12 @@ static CFURLRef ABLinkBindingGetURL(ABBindingRef binding);
 static CFURLRef ABBundleBindingGetURL(ABBindingRef binding);
 static CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding);
 static UInt64 ABFileInfoBindingInfoGetFlags(ABBindingRef binding);
+static CFStringRef ABVolumeBindingGetBundleIdentifier(ABBindingRef binding);
+static CFStringRef ABVolumeBindingGetBundleIconResourceName(ABBindingRef binding);
+
 static ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding);
+static ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding);
+static ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding);
 
 // OSType, EXT, UTI, FLAGS
 static uint32_t (*GetSidebarVariantType)(OSType type, CFStringRef extension, CFStringRef uti, UInt64 flags);
@@ -55,16 +60,30 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
     // source of icons (they are covered in the nameOfIconFile and customIconForURL)
     // if their icons don't exist
     ABBindingClass class = ABBindingGetBindingClass(destination);
+    
+    if (class == ABBindingClassComposite) {
+        
+    }
+    
     BOOL sidebar = ABBindingIsSidebarVariant(destination);
     NSURL *customURL = customIconForURL(url);
     
-    if (class == ABBindingClassBundle && !customURL)
-        customURL = iconForBundle([NSBundle bundleWithURL:(__bridge NSURL *)(ABBindingGetURL(destination))]);
+    if (class == ABBindingClassBundle && !customURL) {
+        NSURL *bundleURL = (__bridge NSURL *)(ABBindingGetURL(destination));
+        if (bundleURL.isFileURL)
+            customURL = iconForBundle([NSBundle bundleWithURL:bundleURL]);
+    } else if (class == ABBindingClassVolume && !customURL) {
+        NSString *identifier = (__bridge NSString *)(ABVolumeBindingGetBundleIdentifier(destination));
+        NSString *imageName = (__bridge NSString *)(ABVolumeBindingGetBundleIconResourceName(destination));
+        if (identifier.length && imageName.length) {
+            NSBundle *bndl = [NSBundle bundleWithIdentifier:identifier];
+            customURL = [bndl URLForResource:imageName.stringByDeletingPathExtension withExtension:imageName.pathExtension];
+        }
+    }
     
     if (class != ABBindingClassBundle &&
         class != ABBindingClassSideFault &&
         class != ABBindingClassCustom &&
-        class != ABBindingClassVolume &&
         class != ABBindingClassComposite &&
         !customURL) {
         
@@ -93,7 +112,9 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
             
             // Getting an OS Type off of the path for dirs breaks
             // so use the folder OS Type if this is an unidentifiable directory
-            if ((ostype == 0 || ostype == '????') && url && !uti && class != ABBindingClassBundle) {
+            if ((ostype == 0 || ostype == '????') && url && !uti &&
+                class != ABBindingClassBundle &&
+                class != ABBindingClassVolume) {
                 // Dont apply the generic folder icon to packages
                 // See if its a dir with a weird extension
                 LSItemInfoRecord info;
@@ -117,9 +138,6 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
         
     }
     
-    if ([url.pathExtension isEqualToString:@"mp3"]) {
-        ABLog("WTF: %d, %@, %d, %@", ABFileInfoBindingInfoGetFlags(destination), ABStringFromOSType(ABBindingGetOSType(destination)), class, url);
-    }
     if (customURL && class != ABBindingClassComposite) {
         ABBindingRef custom = CreateWithResourceURL((__bridge CFURLRef)customURL, YES);
         
@@ -221,6 +239,20 @@ static CFURLRef ABBindingGetURL(ABBindingRef binding) {
 
 #pragma mark - Class-Specific
 
+static ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding) {
+    if (ABBindingGetBindingClass(binding) == ABBindingClassComposite) {
+        return *(ABBindingRef *)((uint8_t *)binding + 0x40);
+    }
+    return NULL;
+}
+
+static ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding) {
+    if (ABBindingGetBindingClass(binding) == ABBindingClassComposite) {
+        return *(ABBindingRef *)((uint8_t *)binding + 0x49);
+    }
+    return NULL;
+}
+
 static CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassFileInfo)
         return *(CFStringRef *)((uint8_t *)binding + 0x40);
@@ -249,6 +281,18 @@ static CFURLRef ABBundleBindingGetURL(ABBindingRef binding) {
 static ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassVariant)
         return *(ABBindingRef *)((uint8_t *)binding + 0x40);
+    return NULL;
+}
+
+static CFStringRef ABVolumeBindingGetBundleIdentifier(ABBindingRef binding) {
+    if (ABBindingGetBindingClass(binding) == ABBindingClassVolume)
+        return *(CFStringRef *)((uint8_t *)binding + 0x48);
+    return NULL;
+}
+
+static CFStringRef ABVolumeBindingGetBundleIconResourceName(ABBindingRef binding) {
+    if (ABBindingGetBindingClass(binding) == ABBindingClassVolume)
+        return *(CFStringRef *)((uint8_t *)binding + 0x50);
     return NULL;
 }
 
