@@ -14,6 +14,13 @@ static NSURL *ThemePath;
 
 static void *(*CreateWithResourceURL)(CFURLRef url, BOOL arg1);
 static void *(*CreateWithUTI)(CFStringRef uti, BOOL arg1);
+static void *(*CreateWithLegacyIconRef)(IconRef, BOOL);
+void *(*CreateWithTypeInfo)(OSType arg0, OSType arg1, CFStringRef extension, BOOL arg3);
+
+static NSURL *customIconForUTI(NSString *uti);
+static NSURL *customIconForURL(NSURL *url);
+static NSURL *customIconForExtension(NSString *extension);
+static NSURL *customIconForOSType(NSString *type);
 
 #define OPLogLevelNotice LOG_NOTICE
 #define OPLogLevelWarning LOG_WARNING
@@ -31,6 +38,134 @@ syslog(level, "%s", _utf8); \
 //    #define OPLog(TYPE, fmt, ...) CFLog(TYPE, CFSTR("Opee: " fmt), ##__VA_ARGS__)
 
 #define ABLog(FORMAT, ...) OPLog(OPLogLevelNotice, FORMAT, ## __VA_ARGS__)
+
+static UInt64 ABBindingGetMagic(void *binding) {
+    if (!binding)
+        return 0;
+    
+    return *((UInt32 *)binding + 0);
+}
+
+// Gets UTI associated with a binding
+// + 0x80 is UTI function
+// + 0x48 is OS Type
+// + 0x40 on Bundle binding is the URL
+
+static CFStringRef ABBindingCopyUTI(void *arg0) {
+    void *deref = *(void **)arg0;
+    
+    // big hax to call C++ instance method from C
+    CFStringRef (*copyUTI)(void *binding);
+    copyUTI = *(void **)((uint8_t *)deref + 0x80);
+    return copyUTI(arg0);
+}
+
+static UInt32 ABBindingGetType(void *binding) {
+    void *deref = *(void **)binding;
+    
+    UInt32 (*getType)(void *binding);
+    getType = *(void **)((uint8_t *)deref + 0x70);
+    return getType(binding);
+}
+
+static IconRef ABBindingGetIconRef(void *binding) {
+    if (!binding)
+        return NULL;
+    void *iconRef = *(void **)((uint8_t *)binding + 0x8);
+    if (IsValidIconRef(iconRef))
+        return iconRef;
+    return NULL;
+}
+
+#define ABLogBinding(BINDING) ABLog("Binding: %p (%@)", BINDING, ABBindingGetDescription(BINDING));
+static CFStringRef ABBindingGetDescription(void *binding) {
+    void *deref = *(void **)binding;
+    
+    CFStringRef (*getDesc)(void *binding);
+    getDesc = *(void **)((uint8_t *)deref + 0x48);
+    return getDesc(binding);
+}
+
+static NSString *ABStringFromOSType(OSType type) {
+    return (__bridge_transfer NSString *)UTCreateStringForOSType(type);
+}
+
+static void (*ReleaseBinding)(void *binding);
+static void (*FindAndRelease)(IconRef icon);
+
+static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) {
+    IconRef destIcon = ABBindingGetIconRef(destination);
+    
+    void *def = CreateWithLegacyIconRef(destIcon, YES);
+    uint32_t magic = ABBindingGetMagic(def) & 0xfff;
+    uint32_t destMagic = ABBindingGetMagic(destination) & 0xfff;
+    
+    // What we are doing here is getting the binding for which the icon of the destination was originally registered
+    // and seeing if that specific Binding is a UTI binding or TypeInfo binding meaning that the icon of this specific
+    // icon is actually the default one for its type, in this case we can feel safe in replacing it
+    
+    // Here are the magic values. For some reason I am only ever able to consistently get the last three bytes of it
+    // so we are just checking against those
+    // 0x12e560: File Info
+    // 0x12e780: Bundle
+    // 0x12eb80: UTI
+    // 0x12ea50: Volume
+    // 0x12e6d0: Custom
+    // 0x12e610: Link
+    // 0x12e830: Variant
+    // 0x1298a0: SideFault
+    // 0x12e8e0: Composite
+    ABLog("Binding UTI %@ %@, %x, (%@)", url.path, ABBindingCopyUTI(destination), magic, ABBindingCopyUTI(def));
+    ABLogBinding(destination);
+    
+    //!TODO: Create a mapping for all OSTypes in IconsCore to a UTI frm CoreTypes.bundle
+    //! and then check it against the OSType in (dest + 0x48) where destMagic == 0x560
+    if (magic == 0xb80 && !custom) {
+        // ABBindingCopyUTI doesnt follow the create rule despite its name
+        NSString *uti = (__bridge NSString *)(ABBindingCopyUTI(destination));
+        if (uti) {
+            ABLog("MATCH PLEASE: %p, %p, %p", destIcon, ABBindingGetIconRef(def), ABBindingGetIconRef(CreateWithUTI((__bridge CFStringRef)uti, YES)));
+            
+            NSURL *url = customIconForUTI(uti);
+            if (url) {
+                custom = CreateWithResourceURL((__bridge CFURLRef)url, NO);
+            }
+        } else if (url) {
+            //!TODO: Figure out if this is necessary
+            // Get the UTI ourselves from the extension or something
+            NSURL *customURL = customIconForExtension(url.pathExtension);
+            if (customURL)
+                custom = CreateWithResourceURL((__bridge CFURLRef)customURL, NO);
+        }
+    }
+    
+    if (!custom) {
+        OSType ostype = ABBindingGetType(destination);
+        if ([url.pathExtension isEqualToString:@"app"]) {
+            NSLog(@"Got Type: %@", ABStringFromOSType(ostype));
+        }
+        if (ostype != 0 && ostype != '????') {
+            NSURL *customURL = customIconForOSType(ABStringFromOSType(ostype));
+            if (customURL) {
+                custom = CreateWithResourceURL((__bridge CFURLRef)customURL, NO);
+            }
+        }
+    }
+    
+    
+    if (custom) {
+        // calls function at *(prt + 0x68) basically
+        OverrideIconRef(destIcon, ABBindingGetIconRef(custom));
+    } else {
+        RemoveIconRefOverride(destIcon);
+    }
+    
+    return destination;
+}
+
+static void *ABPairBindings(void *destination, void *custom) {
+    return ABPairBindingsWithURL(destination, custom, NULL);
+}
 
 #pragma mark - Bundle Helpers
 
@@ -145,6 +280,9 @@ static BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStrin
 }
 
 static NSURL *replacementURLForURL(NSURL *url) {
+    if (!url)
+        return nil;
+    
     // Step 1, check absolute paths
     NSFileManager *manager = [NSFileManager defaultManager];
     BOOL isDir = NO;
@@ -188,6 +326,9 @@ static NSURL *replacementURLForURL(NSURL *url) {
 }
 
 static NSURL *customIconForURL(NSURL *url) {
+    if (!url)
+        return nil;
+    
     // Step 1, check if our theme structure has a custom icon for this hardcoded
     NSFileManager *manager = [NSFileManager defaultManager];
     BOOL isDir = NO;
@@ -208,22 +349,6 @@ static NSURL *customIconForURL(NSURL *url) {
 }
 
 #pragma mark - UTI Helpers
-
-static NSString *UTIForURL(CFURLRef url) {
-    if (!url)
-        return nil;
-    NSString *ext = (__bridge_transfer NSString *)CFURLCopyPathExtension(url);
-    if (!ext)
-        return nil;
-    
-    NSString *uti = (__bridge_transfer NSString *)(UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, (__bridge CFStringRef)(ext), NULL));
-    BOOL isDir = YES;
-    [[NSFileManager defaultManager] fileExistsAtPath:((__bridge NSURL *)url).path isDirectory:&isDir];
-    if ((isDir && [uti hasPrefix:@"dyn.age"]) || isDir)
-        return nil;
-    
-    return uti;
-}
 
 static NSURL *URLForUTIFile(NSString *name) {
     return [[[ThemePath URLByAppendingPathComponent:@"UTIs"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"];
@@ -252,98 +377,154 @@ static NSURL *customIconForUTI(NSString *uti) {
     return nil;
 }
 
+static NSURL *customIconForExtension(NSString *extension) {
+    if (!extension)
+        return nil;
+    
+    // step 1, check if we have the actual extension.icns
+    NSURL *tentativeURL = URLForUTIFile(extension);
+    NSFileManager *manager = [NSFileManager defaultManager];
+    if ([manager fileExistsAtPath:tentativeURL.path]) {
+        return tentativeURL;
+    }
+    
+    // step 2: get all of the utis for this extension and check against that
+    NSArray *utis = (__bridge_transfer NSArray *)UTTypeCreateAllIdentifiersForTag(kUTTagClassFilenameExtension, (__bridge CFStringRef)extension, NULL);
+    for (NSString *uti in utis) {
+        // Use this so it also checks other variants of this extension
+        // such as jpeg vs jpg in addition to public.jpeg
+        tentativeURL = customIconForUTI(uti);
+        if (tentativeURL)
+            return tentativeURL;
+    }
+    
+    return nil;
+}
+
+static NSURL *URLForOSType(NSString *type) {
+    return [[[ThemePath URLByAppendingPathComponent:@"OSTypes"] URLByAppendingPathComponent:type] URLByAppendingPathExtension:@"icns"];
+}
+
+static NSURL *customIconForOSType(NSString *type) {
+    // step 1, check if we have the actual type.icns
+    NSURL *tentativeURL = URLForOSType(type);
+    NSFileManager *manager = [NSFileManager defaultManager];
+    if ([manager fileExistsAtPath:tentativeURL.path]) {
+        return tentativeURL;
+    }
+    
+    // step 2, convert to uti and go ham
+    // step 2: get all of the utis for this extension and check against that
+    NSArray *utis = (__bridge_transfer NSArray *)UTTypeCreateAllIdentifiersForTag(kUTTagClassOSType, (__bridge CFStringRef)type, NULL);
+    for (NSString *uti in utis) {
+        // Use this so it also checks other variants of this extension
+        // such as jpeg vs jpg in addition to public.jpeg
+        tentativeURL = customIconForUTI(uti);
+        if (tentativeURL)
+            return tentativeURL;
+    }
+    
+    return nil;
+}
+
 #pragma mark - Hooks
 #pragma mark LaunchServices Icon Bindings
 static void *(*CreateWithFileInfo)(FSRef const *ref, unsigned long arg1, unsigned short const *arg2, unsigned int arg3, FSCatalogInfo const *arg4, bool arg5);
-OPHook6(void *, CreateWithFileInfo, FSRef const *, arg0, unsigned long, arg1, unsigned short const *, arg2, unsigned int, arg3, FSCatalogInfo const *, arg4, BOOL, arg5) {
-    
-//    void *property = NULL;
+OPHook6(void *, CreateWithFileInfo, FSRef const *, ref, UniCharCount, fileNameLength, const UniChar *, fileName, FSCatalogInfoBitmap, inWhichInfo, FSCatalogInfo const *, outInfo, BOOL, arg5) {
 
-    NSURL *targetURL = (__bridge_transfer NSURL *)CFURLCreateFromFSRef(NULL, arg0);
-//    if (CFURLCopyResourcePropertyForKey((__bridge CFURLRef)targetURL, CFSTR("_NSURLBindingKey"), NULL, NULL)) {
-//        NSLog(@"got binding for %@", targetURL);
-//    } else {
-//        NSLog(@"didnt get binding for %@", targetURL);
-//    }
+    NSURL *targetURL = (__bridge_transfer NSURL *)CFURLCreateFromFSRef(NULL, ref);
+    void *customBinding = NULL;
 
     NSURL *customURL = customIconForURL(targetURL);
     if (customURL) {
-        return CreateWithResourceURL((__bridge CFURLRef)customURL, arg5);
-    } else {
-        // try a UTI
-        NSString *uti = UTIForURL((__bridge CFURLRef)(targetURL));
-        NSURL *utiURL = customIconForUTI(uti);
-        if (utiURL) {
-            return CreateWithResourceURL((__bridge CFURLRef)utiURL, arg5);
-        }
+        customBinding = CreateWithResourceURL((__bridge CFURLRef)customURL, arg5);
     }
 
+    void *rtn0 = OPOldCall(ref, fileNameLength, fileName, inWhichInfo, outInfo, arg5);
+
+//    unsigned int *rtn = rtn0;
+
     
-    return OPOldCall(arg0, arg1, arg2, arg3, arg4, arg5);;
+   /* if (!customBinding) {
+        unsigned long long magic = *((unsigned long long *)rtn);
+        unsigned int type = (unsigned int)(magic & 0xfff);
+    
+        ABLog("Magic SHIT for %@: %x %x", targetURL, (unsigned int)(magic & 0xfff), 0x560);
+        if (type == 0xb80) {
+            ABLog("It's a UTI");
+            
+        } else if (type == 0x560) {
+            CFStringRef str = *((CFStringRef *)rtn + 8);
+            ABLog("Magic String: %@", str);
+        } else if (type == 0x780) {
+            CFTypeRef unk = *((CFTypeRef *)rtn + 8);
+            ABLog("Magic Value: %@", unk);
+        }
+    }
+    void *iconRef = *(void **)((uint8_t *)rtn0 + 0x8);
+    ABLog("Icon Ref: %p, %d", iconRef, IsValidIconRef(iconRef));
+    */
+//    RemoveIconRefOverride(iconRef);
+    
+//    unsigned int upper = (magic & 0xffff0000);
+//    unsigned int lower = (magic & 0xffff);
+//    ABLog("Magic for %@ is:", targetURL);
+//    for (int x = -4; x <= 8; x++) {
+//        ABLog("%x", *(rtn + x));
+//    }
+    
+    return ABPairBindingsWithURL(rtn0, customBinding, targetURL);
 }
 
 static void *(*CreateWithURL)(CFURLRef url, BOOL arg1);
 OPHook2(void *, CreateWithURL, CFURLRef, url, BOOL, arg1) {
-//    void *property = NULL;
-//
-//    if (CFURLCopyResourcePropertyForKey(url, CFSTR("_NSURLBindingKey"), (void*)&property, NULL)) {
-//        NSLog(@"got binding for %@", url);
-//    } else {
-//        NSLog(@"didnt get binding for %@", url);
-//    }
-//    
+    void *customBinding = NULL;
     NSURL *customURL = customIconForURL((__bridge NSURL *)(url));
-    ABLog("Getting Icon For URL: %@", url);
     if (customURL) {
-        ABLog("got custom URL for URL: %@, %@", customURL, url);
-        return CreateWithResourceURL((__bridge CFURLRef)customURL, arg1);
-    } else {
-//        // try a UTI
-//        NSString *uti = UTIForURL(url);
-//        if (uti) {
-//            return CreateWithUTI((__bridge CFStringRef)uti, arg1);
-//        }
+        customBinding =  CreateWithResourceURL((__bridge CFURLRef)customURL, arg1);
     }
     
-    return OPOldCall(url, arg1);
+    return ABPairBindingsWithURL(OPOldCall(url, arg1), customBinding, (__bridge NSURL *)url);
 }
 
 OPHook2(void *, CreateWithUTI, CFStringRef, uti, BOOL, arg1) {
-    ABLog("Snag UTI: %@", uti);
     NSURL *utiPath = customIconForUTI((__bridge NSString *)(uti));
+    
+    void *customBinding = NULL;
     if (utiPath) {
-        return CreateWithResourceURL((__bridge CFURLRef)utiPath, arg1);
+        customBinding = CreateWithResourceURL((__bridge CFURLRef)utiPath, arg1);
     }
     
-    return OPOldCall(uti, arg1);
+    return ABPairBindings(OPOldCall(uti, arg1), customBinding);
 }
 
 // I think these bools tell it to cache the binding
 void *(*CreateWithResourceURLAndResourceID)(CFURLRef url, short resourceID, BOOL store);
-OPHook3(void *, CreateWithResourceURLAndResourceID, CFURLRef, url, short, resourceID, BOOL, store) {
-    ABLog("Create with resource url: %@, %d", url, resourceID);
-    return OPOldCall(url, resourceID, store);
-}
-
+//OPHook3(void *, CreateWithResourceURLAndResourceID, CFURLRef, url, short, resourceID, BOOL, store) {
+//    ABLog("Create with resource url: %@, %d", url, resourceID);
+//    return OPOldCall(url, resourceID, store);
+//}
+//
 
 void *(*CreateWithBookmarkData)(CFDataRef bookmarkData, BOOL arg1);
 OPHook2(void *, CreateWithBookmarkData, CFDataRef, bookmarkData, BOOL, arg1) {
     BOOL stale = NO;
     NSError *error = nil;
+    void *customBinding = NULL;
     NSURL *resolved = [NSURL URLByResolvingBookmarkData:(__bridge NSData *)bookmarkData
                                                 options:NSURLBookmarkResolutionWithoutUI | NSURLBookmarkResolutionWithoutMounting
                                           relativeToURL:nil
                                     bookmarkDataIsStale:&stale
                                                   error:&error];
     if (!error && !stale) {
-        ABLog("Create with bookmark data: %@", resolved);
+//        ABLog("Create with bookmark data: %@", resolved);
         NSURL *customURL = customIconForURL(resolved);
         if (customURL) {
-            return CreateWithResourceURL((__bridge CFURLRef)customURL, arg1);
+            customBinding = CreateWithResourceURL((__bridge CFURLRef)customURL, arg1);
         }
     }
     
-    return OPOldCall(bookmarkData, arg1);
+    return ABPairBindingsWithURL(OPOldCall(bookmarkData, arg1), customBinding, resolved);
 }
 
 // This is used in the Finder sidebar
@@ -358,24 +539,59 @@ OPHook2(void *, CreateWithAliasData, CFDataRef, aliasData, BOOL, arg1) {
                                           relativeToURL:nil
                                     bookmarkDataIsStale:&stale
                                                   error:&error];
+    void *customBinding = NULL;
     if (!error && !stale) {
-        ABLog("Create with alias data: %@", resolved);
+//        ABLog("Create with alias data: %@", resolved);
         NSURL *customURL = customIconForURL(resolved);
         if (customURL) {
-            return CreateWithResourceURL((__bridge CFURLRef)customURL, arg1);
+            customBinding = CreateWithResourceURL((__bridge CFURLRef)customURL, arg1);
         }
     }
     
-    return OPOldCall(aliasData, arg1);
+    return ABPairBindingsWithURL(OPOldCall(aliasData, arg1), customBinding, resolved);
 }
 
-/*
-void *(*CreateWithTypeInfo)(unsigned int arg0, unsigned int arg1, CFStringRef extension, BOOL arg3);
-OPHook4(void *, CreateWithTypeInfo, void *, arg0, void *, arg1, CFStringRef, extension, BOOL, arg3) {
-    NSLog(@"Create with type info %p, %p, %@, %d", arg0, arg1, extension, arg3);
-    return OPOldCall(arg0, arg1, extension, arg3);
+OPHook4(void *, CreateWithTypeInfo, OSType, creator, OSType, iconType, CFStringRef, extension, BOOL, arg3) {
+    
+    void *customBinding = NULL;
+    if (extension != NULL) {
+        NSURL *targetURL = customIconForExtension((__bridge NSString *)(extension));
+        if (targetURL) {
+            customBinding = CreateWithResourceURL((__bridge CFURLRef)targetURL, arg3);
+        }
+    }
+    
+    if (customBinding == NULL) {
+        NSString *code = ABStringFromOSType(iconType);
+
+        NSURL *custom = customIconForOSType(code);
+        if (custom) {
+            customBinding = CreateWithResourceURL((__bridge CFURLRef)custom, arg3);
+        }
+    }
+    
+    return ABPairBindings(OPOldCall(creator, iconType, extension, arg3), customBinding);
 }
-*/
+
+
+void *(*CreateWithFolder)(SInt16 vRefNum, SInt32 parentFolderID, SInt32 folderID, SInt8 attributes, SInt8 accessPrivileges, BOOL arg5);
+OPHook6(void *, CreateWithFolder, SInt16, vRefNum, SInt32, parentFolderID, SInt32, folderID, SInt8, attributes, SInt8, accessPrivileges, BOOL, arg5) {
+    
+//    ABLog("Create with folder");
+//    NSURL *folderURL = customIconForUTI(@"public.folder");
+    void *customBinding = NULL;
+//    if (folderURL) {
+//        customBinding = CreateWithResourceURL((__bridge CFURLRef)folderURL, arg5);
+//    }
+//
+    return ABPairBindings(OPOldCall(vRefNum, parentFolderID, folderID, attributes, accessPrivileges, arg5), customBinding);
+}
+
+void *(*CreateWithDeviceID)(const char *device, BOOL arg1);
+OPHook2(void *, CreateWithDeviceID, const char *, device, BOOL, arg1) {
+    ABLog("Create with Device: %s", device);
+    return ABPairBindings(OPOldCall(device, arg1), NULL);
+}
 
 /*
                       __ZN14BindingManager18CreateWithDeviceIDEPKcb:        // BindingManager::CreateWithDeviceID(char const*, bool)
@@ -391,6 +607,7 @@ OPHook4(CFURLRef, CFBundleCopyResourceURL, CFBundleRef, bundle, CFStringRef, res
         ABLog("Bundle: %@, %@, %@", bundle, resourceName, resourceType);
     }
     
+    // for some reason when I __bridge over cfbundle shit breaks
     NSBundle *nsBundle = [NSBundle bundleWithPath:((__bridge_transfer NSURL *)CFBundleCopyBundleURL(bundle)).path];
     if (!(hasBundle(nsBundle) && hasResourceForBundle(nsBundle, resourceName, resourceType, subDirName, &finalURL))) {
         finalURL = OPOldCall(bundle, resourceName, resourceType, subDirName);
@@ -403,11 +620,12 @@ OPHook4(CFURLRef, CFBundleCopyResourceURL, CFBundleRef, bundle, CFStringRef, res
 OPHook4(CFURLRef, CFBundleCopyResourceURLInDirectory, CFURLRef, bundleURL, CFStringRef, resourceName, CFStringRef, resourceType, CFStringRef, subDirName) {
     CFURLRef finalURL = NULL;
     
-    NSBundle *nsBundle = [NSBundle bundleWithURL:(__bridge NSURL *)bundleURL];
-    if (!(hasBundle(nsBundle) && hasResourceForBundle(nsBundle, resourceName, resourceType, subDirName, &finalURL))) {
-        finalURL = OPOldCall(bundleURL, resourceName, resourceType, subDirName);
+    if (bundleURL) {
+        NSBundle *nsBundle = [NSBundle bundleWithURL:(__bridge NSURL *)bundleURL];
+        if (!(hasBundle(nsBundle) && hasResourceForBundle(nsBundle, resourceName, resourceType, subDirName, &finalURL))) {
+            finalURL = OPOldCall(bundleURL, resourceName, resourceType, subDirName);
+        }
     }
-    
     
     if ([((__bridge NSString *)resourceName).pathExtension isEqualToString:@"icns"] ||
         [((__bridge NSString *)resourceType) isEqualToString:@"icns"]) {
@@ -509,16 +727,18 @@ void (*CGImageReadCreateWithURL)(CFURLRef arg0, int arg1, int arg2);
     OPOldCall(url, arg1, arg2);
 }
 */
-#import <mach-o/dyld.h>
 
 /*
-                      __ZN10UTIBindingC2EPK10__CFString:        // UTIBinding::UTIBinding(__CFString const*)
- */
-void *(*UTIBinding)(CFStringRef uti);
-OPHook1(void *, UTIBinding, CFStringRef, uti) {
-    NSLog(@"UTIBinding: %@", uti);
-    return OPOldCall(CFSTR("public.mp3"));
+                      __ZN16RegisteredImages22CopyImageByTypeCreatorEjjPP16OpaqueISImageRef:        // RegisteredImages::CopyImageByTypeCreator(unsigned int, unsigned int, OpaqueISImageRef**)*/
+
+void *(*CopyImageByTypeCreator)(OSType creator, OSType type, void **imageRef);
+OPHook3(void *, CopyImageByTypeCreator, OSType, creator, OSType, type, void **, imageRef) {
+    void *rtn = OPOldCall(creator, type, imageRef);
+    ABLog("Copy Image: %p", rtn);
+    return rtn;
 }
+
+#import <mach-o/dyld.h>
 
 #pragma mark - Initialize
 OPInitialize {
@@ -541,27 +761,31 @@ OPInitialize {
     
     ThemePath = [NSURL fileURLWithPath:@"/Library/AutumnBoard/Themes/Fladder2"];
     
-//    FileInfoBinding = OPFindSymbol("__ZN15FileInfoBindingC2EPK10__CFStringjy");
+    ReleaseBinding = OPFindSymbol("__ZN14BindingManager7ReleaseEP7Bindingb");
+    FindAndRelease = OPFindSymbol("__ZN14BindingManager14FindAndReleaseEP13OpaqueIconRef");
     
     CreateWithBookmarkData = OPFindSymbol("__ZN14BindingManager22CreateWithBookmarkDataEPK8__CFDatab");
     CreateWithResourceURL = OPFindSymbol("__ZN14BindingManager21CreateWithResourceURLEPK7__CFURLb");
-//    CreateWithTypeInfo = OPFindSymbol("__ZN14BindingManager18CreateWithTypeInfoEjjPK10__CFStringb");
+    CreateWithTypeInfo = OPFindSymbol("__ZN14BindingManager18CreateWithTypeInfoEjjPK10__CFStringb");
     CreateWithFileInfo = OPFindSymbol("__ZN14BindingManager18CreateWithFileInfoEPK5FSRefmPKtjPK13FSCatalogInfob");
     CreateWithURL = OPFindSymbol("__ZN14BindingManager13CreateWithURLEPK7__CFURLb");
     CreateWithUTI = OPFindSymbol("__ZN14BindingManager13CreateWithUTIEPK10__CFStringb");
     CreateWithResourceURLAndResourceID = OPFindSymbol("__ZN14BindingManager34CreateWithResourceURLAndResourceIDEPK7__CFURLsb");
     CreateWithAliasData = OPFindSymbol("__ZN14BindingManager19CreateWithAliasDataEPK8__CFDatab");
-    
-    UTIBinding = OPFindSymbol("__ZN10UTIBindingC2EPK10__CFString");
-//    OPHookFunction(UTIBinding);
+    CreateWithFolder = OPFindSymbol("__ZN14BindingManager16CreateWithFolderEsiiaab");
+    CreateWithLegacyIconRef = OPFindSymbol("__ZN14BindingManager23CreateWithLegacyIconRefEP13OpaqueIconRefb");
+    CreateWithDeviceID = OPFindSymbol("__ZN14BindingManager18CreateWithDeviceIDEPKcb");
     
     __UTTypeCopyIconFileName = OPFindSymbol("__UTTypeCopyIconFileName");
     CGImageReadCreateWithURL = OPFindSymbol("_CGImageReadCreateWithURL");
+
+    
+    CopyImageByTypeCreator = OPFindSymbol("__ZN16RegisteredImages22CopyImageByTypeCreatorEjjPP16OpaqueISImageRef");
+    OPHookFunction(CopyImageByTypeCreator);
     
 //    OPHookFunction(__UTTypeCopyIconFileName);
 //    OPHookFunction(CFURLCreateDataAndPropertiesFromResource);
 //    OPHookFunction(FileInfoBinding);
-//    OPHookFunction(CreateWithTypeInfo);
 //    OPHookFunction(CGImageReadCreateWithURL);
     OPHookFunction(CGImageSourceCreateWithURL);
     OPHookFunction(CGDataProviderCreateWithFilename);
@@ -570,10 +794,11 @@ OPInitialize {
     OPHookFunction(CFBundleCopyResourceURLInDirectory);
     OPHookFunction(CFBundleCopyResourceURL);
     
+    OPHookFunction(CreateWithTypeInfo);
+    OPHookFunction(CreateWithFolder);
     OPHookFunction(CreateWithAliasData);
     OPHookFunction(CreateWithBookmarkData);
-    OPHookFunction(CreateWithResourceURLAndResourceID);
     OPHookFunction(CreateWithURL);
     OPHookFunction(CreateWithFileInfo);
-    OPHookFunction(CreateWithUTI);
+//    OPHookFunction(CreateWithUTI);
 }
