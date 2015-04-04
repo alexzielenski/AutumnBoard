@@ -60,11 +60,6 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
     if (class == ABBindingClassBundle && !customURL)
         customURL = iconForBundle([NSBundle bundleWithURL:(__bridge NSURL *)(ABBindingGetURL(destination))]);
     
-    if (class == ABBindingClassComposite ||
-        class == ABBindingClassLink) {
-        ABLog("FOUND COMPOSITE AT %@ %lx", ABBindingGetURL(destination), class);
-    }
-    
     if (class != ABBindingClassBundle &&
         class != ABBindingClassSideFault &&
         class != ABBindingClassCustom &&
@@ -108,13 +103,12 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
                     ostype = kGenericExtensionIcon;
                 else if (info.flags & kLSItemInfoIsContainer)
                     ostype = kGenericFolderIcon;
+                else if ([[NSFileManager defaultManager] isExecutableFileAtPath:resolved.path])
+                    ostype = 'xTol';
+                else
+                    ostype = info.filetype;
             }
             
-            if (class == ABBindingClassLink) {
-                ABLogBinding(destination);
-                ABLog("COMPOSITE %@", ABStringFromOSType(ostype));
-            }
-
             if (ostype != 0 && ostype != '????')
                 customURL = customIconForOSType(ABStringFromOSType(ostype));
         }
