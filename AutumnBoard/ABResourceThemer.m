@@ -87,7 +87,7 @@ BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStringRef re
     if (!resource)
         return NO;
     
-    if (subDir != NULL) {
+    if (subDir != NULL && CFStringGetLength(subDir) > 0) {
         finalURL = [finalURL URLByAppendingPathComponent:(__bridge NSString *)(subDir)];
     }
     
@@ -109,7 +109,9 @@ BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStringRef re
         }
     }
     
-    if (resourceType != NULL) {
+    if (resourceType != NULL && resource != NULL &&
+        CFStringGetLength(resourceType) > 0 &&
+        CFStringGetLength(resource) > 0) {
         // we know exactly what file we are looking for
         finalURL = [finalURL URLByAppendingPathComponent:(__bridge NSString *)(resource)];
         finalURL = [finalURL URLByAppendingPathExtension:(__bridge NSString *)resourceType];
