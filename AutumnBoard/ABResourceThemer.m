@@ -203,12 +203,7 @@ NSURL *customIconForURL(NSURL *url) {
         return testURL;
     }
     
-    // Step 2, check if this is a bundle
-    NSBundle *tentativeBundle = [NSBundle bundleWithURL:url];
-    if (tentativeBundle) {
-        return iconForBundle(tentativeBundle);
-    }
-    
+
     return nil;
 }
 

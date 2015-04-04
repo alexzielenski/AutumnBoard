@@ -8,10 +8,7 @@
 
 #import <Foundation/Foundation.h>
 #import <Opee/Opee.h>
-
-#import "ABBinding.h"
-#import "ABResourceThemer.h"
-
+#import "ABLogging.h"
 
 @interface NSImage (Private)
 - (void)_drawMappingAlignmentRectToRect:(struct CGRect)arg1 withState:(unsigned long long)arg2 backgroundStyle:(int)arg3 operation:(unsigned long long)arg4 fraction:(double)arg5 flip:(BOOL)arg6 hints:(id)arg7;

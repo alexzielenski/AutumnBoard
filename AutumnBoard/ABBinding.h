@@ -14,8 +14,7 @@
 
 typedef void *ABBindingRef;
 
-void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url);
-void *ABPairBindings(void *destination, void *custom);
+void *ABPairBindingsWithURL(void *destination, NSURL *url);
 NSString *ABStringFromOSType(OSType type);
 
 #endif /* defined(__AutumnBoard__ABBinding__) */

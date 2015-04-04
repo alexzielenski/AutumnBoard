@@ -26,55 +26,28 @@ static void *(*CreateVariant)(void *binding, unsigned long long, unsigned long l
 OPHook6(void *, CreateWithFileInfo, FSRef const *, ref, UniCharCount, fileNameLength, const UniChar *, fileName, FSCatalogInfoBitmap, inWhichInfo, FSCatalogInfo const *, outInfo, BOOL, arg5) {
     
     NSURL *targetURL = (__bridge_transfer NSURL *)CFURLCreateFromFSRef(NULL, ref);
-    void *customBinding = NULL;
-    
-    NSURL *customURL = customIconForURL(targetURL);
-    if (customURL) {
-        customBinding = CreateWithResourceURL((__bridge CFURLRef)customURL, arg5);
-    }
-    
-    return ABPairBindingsWithURL(OPOldCall(ref, fileNameLength, fileName, inWhichInfo, outInfo, arg5), customBinding, targetURL);
+    return ABPairBindingsWithURL(OPOldCall(ref, fileNameLength, fileName, inWhichInfo, outInfo, arg5), targetURL);
 }
 
 OPHook2(void *, CreateWithURL, CFURLRef, url, BOOL, arg1) {
-    void *customBinding = NULL;
-    NSURL *customURL = customIconForURL((__bridge NSURL *)(url));
-    if (customURL) {
-        customBinding =  CreateWithResourceURL((__bridge CFURLRef)customURL, arg1);
-    }
-    
-    return ABPairBindingsWithURL(OPOldCall(url, arg1), customBinding, (__bridge NSURL *)url);
+    return ABPairBindingsWithURL(OPOldCall(url, arg1),(__bridge NSURL *)url);
 }
 
 OPHook2(void *, CreateWithUTI, CFStringRef, uti, BOOL, arg1) {
-    NSURL *utiPath = customIconForUTI((__bridge NSString *)(uti));
-    
-    void *customBinding = NULL;
-    if (utiPath) {
-        customBinding = CreateWithResourceURL((__bridge CFURLRef)utiPath, arg1);
-    }
-    
-    return ABPairBindings(OPOldCall(uti, arg1), customBinding);
+    return ABPairBindingsWithURL(OPOldCall(uti, arg1), NULL);
 }
 
 OPHook2(void *, CreateWithBookmarkData, CFDataRef, bookmarkData, BOOL, arg1) {
     BOOL stale = NO;
     NSError *error = nil;
-    void *customBinding = NULL;
     NSURL *resolved = [NSURL URLByResolvingBookmarkData:(__bridge NSData *)bookmarkData
                                                 options:NSURLBookmarkResolutionWithoutUI | NSURLBookmarkResolutionWithoutMounting
                                           relativeToURL:nil
                                     bookmarkDataIsStale:&stale
                                                   error:&error];
-    if (!error && !stale) {
-        //        ABLog("Create with bookmark data: %@", resolved);
-        NSURL *customURL = customIconForURL(resolved);
-        if (customURL) {
-            customBinding = CreateWithResourceURL((__bridge CFURLRef)customURL, arg1);
-        }
-    }
+
     
-    return ABPairBindingsWithURL(OPOldCall(bookmarkData, arg1), customBinding, resolved);
+    return ABPairBindingsWithURL(OPOldCall(bookmarkData, arg1), resolved);
 }
 
 // This is used in the Finder sidebar
@@ -88,51 +61,46 @@ OPHook2(void *, CreateWithAliasData, CFDataRef, aliasData, BOOL, arg1) {
                                           relativeToURL:nil
                                     bookmarkDataIsStale:&stale
                                                   error:&error];
-    void *customBinding = NULL;
-    if (!error && !stale) {
-        //        ABLog("Create with alias data: %@", resolved);
-        NSURL *customURL = customIconForURL(resolved);
-        if (customURL) {
-            customBinding = CreateWithResourceURL((__bridge CFURLRef)customURL, arg1);
-        }
+    if (error || stale) {
+        resolved = nil;
     }
     
-    return ABPairBindingsWithURL(OPOldCall(aliasData, arg1), customBinding, resolved);
+    return ABPairBindingsWithURL(OPOldCall(aliasData, arg1), resolved);
 }
 
 OPHook4(void *, CreateWithTypeInfo, OSType, creator, OSType, iconType, CFStringRef, extension, BOOL, arg3) {
     
-    void *customBinding = NULL;
-    if (extension != NULL) {
-        NSURL *targetURL = customIconForExtension((__bridge NSString *)(extension));
-        if (targetURL) {
-            customBinding = CreateWithResourceURL((__bridge CFURLRef)targetURL, arg3);
-        }
-    }
-    
-    if (customBinding == NULL) {
-        NSString *code = ABStringFromOSType(iconType);
-        
-        NSURL *custom = customIconForOSType(code);
-        if (custom) {
-            customBinding = CreateWithResourceURL((__bridge CFURLRef)custom, arg3);
-        }
-    }
-    
-    return ABPairBindings(OPOldCall(creator, iconType, extension, arg3), customBinding);
+//    void *customBinding = NULL;
+//    if (extension != NULL) {
+//        NSURL *targetURL = customIconForExtension((__bridge NSString *)(extension));
+//        if (targetURL) {
+//            customBinding = CreateWithResourceURL((__bridge CFURLRef)targetURL, arg3);
+//        }
+//    }
+//    
+//    if (customBinding == NULL) {
+//        NSString *code = ABStringFromOSType(iconType);
+//        
+//        NSURL *custom = customIconForOSType(code);
+//        if (custom) {
+//            customBinding = CreateWithResourceURL((__bridge CFURLRef)custom, arg3);
+//        }
+//    }
+//    
+    return ABPairBindingsWithURL(OPOldCall(creator, iconType, extension, arg3), NULL);
 }
 
 OPHook6(void *, CreateWithFolder, SInt16, vRefNum, SInt32, parentFolderID, SInt32, folderID, SInt8, attributes, SInt8, accessPrivileges, BOOL, arg5) {
-    return ABPairBindings(OPOldCall(vRefNum, parentFolderID, folderID, attributes, accessPrivileges, arg5), NULL);
+    return ABPairBindingsWithURL(OPOldCall(vRefNum, parentFolderID, folderID, attributes, accessPrivileges, arg5), NULL);
 }
 
 OPHook2(void *, CreateWithDeviceID, const char *, device, BOOL, arg1) {
     ABLog("Create with Device: %s", device);
-    return ABPairBindings(OPOldCall(device, arg1), NULL);
+    return ABPairBindingsWithURL(OPOldCall(device, arg1), NULL);
 }
 
 OPHook4(void *, CreateVariant, void *, binding, unsigned long long, arg1, unsigned long long, arg2, BOOL, arg3) {
-    return ABPairBindings(OPOldCall(binding, arg1, arg2, arg3), NULL);
+    return ABPairBindingsWithURL(OPOldCall(binding, arg1, arg2, arg3), NULL);
 }
 
 OPInitialize {
