@@ -41,11 +41,11 @@ syslog(level, "%s", _utf8); \
 
 #define ABLog(FORMAT, ...) OPLog(OPLogLevelNotice, FORMAT, ## __VA_ARGS__)
 
-static UInt64 ABBindingGetMagic(void *binding) {
+static UInt32 ABBindingGetMagic(void *binding) {
     if (!binding)
         return 0;
     
-    return *((UInt32 *)binding + 0);
+    return *((UInt32 *)binding);
 }
 
 // Gets UTI associated with a binding
@@ -79,6 +79,31 @@ static IconRef ABBindingGetIconRef(void *binding) {
     return NULL;
 }
 
+static UInt64 ABBindingGetVariantFlags(void *binding) {
+    UInt64 (*getFlags)(void *binding);
+    // HEY GUYS LOOK AT ALL THESE CASTS!
+    getFlags = *(void **)((uint8_t *)(*(void **)binding) + 0x60);
+    return getFlags(binding);
+}
+
+static void ABBindingOverride(void *destination, void *custom) {
+    // This is the actual stuff that replaces the icons
+    // dont listen to what other people tell you, this IS the magic
+    // wtf how does this shit work? you may ask
+    // I'll tell you
+    
+    // 1: Dereference the pointer to the binding so we can interact
+    //    with the object itself.
+    void *def = *(void **)destination;
+    // 2: Create a variable to store the address to the override method
+    void (*overrideBinding)(void *dest, void *src);
+    // 3: Get and dereference the address to the override binding function on
+    //    this C++ instance method
+    overrideBinding = *(void **)((uint8_t *)def + 0x68);
+    // 4: Invoke it
+    overrideBinding(destination, custom);
+}
+
 #define ABLogBinding(BINDING) ABLog("Binding: %p (%@)", BINDING, ABBindingGetDescription(BINDING));
 static CFStringRef ABBindingGetDescription(void *binding) {
     void *deref = *(void **)binding;
@@ -91,9 +116,13 @@ static CFStringRef ABBindingGetDescription(void *binding) {
 static NSString *ABStringFromOSType(OSType type) {
     return (__bridge_transfer NSString *)UTCreateStringForOSType(type);
 }
+// OSType, EXT, UTI, FLAGS
 
+static uint32_t (*GetSidebarVariantType)(OSType type, CFStringRef extension, CFStringRef uti, UInt64 flags);
 static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) {
-    IconRef destIcon = ABBindingGetIconRef(destination);
+    if (GetSidebarVariantType == NULL) {
+        GetSidebarVariantType = OPFindSymbol("__Z21GetSidebarVariantTypejPK10__CFStringS1_y");
+    }
     uint32_t destMagic = ABBindingGetMagic(destination) & 0xfff;
 
     // Here are the magic values. For some reason I am only ever able to consistently get the last three bytes of it
@@ -107,9 +136,9 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
     // 0x12e830: Variant
     // 0x1298a0: SideFault
     // 0x12e8e0: Composite
-    ABLogBinding(destination);
 
     if (destMagic == 0x6d0) {
+        ABLogBinding(destination);
         ABLog("Custom Binding at %@", url);
     }
     
@@ -121,12 +150,18 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
     // if their icons don't exist
     if (destMagic != 0x780 &&
         destMagic != 0x8e0 &&
+        destMagic != 0x830 &&
+        destMagic != 0x6d0 &&
+        destMagic != 0xa50 &&
         !custom) {
         //!TODO: if this is a CompositeBinding then we want to set the background IconRef
         //!rather than replacing it
-        
+
         // ABBindingCopyUTI doesnt follow the create rule despite its name
         NSString *uti = (__bridge NSString *)(ABBindingCopyUTI(destination));
+        if (uti && UTTypeIsDynamic((__bridge CFStringRef)(uti)))
+            uti = nil;
+        
         if (uti) {
             NSURL *url = customIconForUTI(uti);
             if (url) {
@@ -143,6 +178,17 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
         
         if (!custom) {
             OSType ostype = ABBindingGetType(destination);
+
+            // Getting an OS Type off of the path for dirs breaks
+            // so use the folder OS Type if this is an unidentifiable directory
+            if ((ostype == 0 || ostype == '????') && url && !uti) {
+                // See if its a dir with a weird extension
+                BOOL isDir = NO;
+                [[NSFileManager defaultManager] fileExistsAtPath:url.path isDirectory:&isDir];
+                if (isDir)
+                    ostype = kGenericFolderIcon;
+            }
+            
             if (ostype != 0 && ostype != '????') {
                 NSURL *customURL = customIconForOSType(ABStringFromOSType(ostype));
                 if (customURL) {
@@ -152,9 +198,9 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
         }
     }
     
-    if (custom)
-        // calls member function at *(prt + 0x68)
-        OverrideIconRef(destIcon, ABBindingGetIconRef(custom));
+    if (custom) {
+        ABBindingOverride(destination, custom);
+    }
     
     return destination;
 }
@@ -234,6 +280,7 @@ static BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStrin
         finalURL = [finalURL URLByAppendingPathComponent:(__bridge NSString *)(subDir)];
     }
     
+    // If the extensions is on resource, move it to resourceType
     if (resourceType == NULL && ((__bridge NSString *)resource).pathExtension != nil) {
         resourceType = (__bridge CFStringRef)((__bridge NSString *)resource).pathExtension;
         resource = (__bridge CFStringRef)((__bridge NSString *)resource).stringByDeletingPathExtension;
@@ -252,9 +299,11 @@ static BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStrin
     }
 
     if (resourceType != NULL) {
+        // we know exactly what file we are looking for
         finalURL = [finalURL URLByAppendingPathComponent:(__bridge NSString *)(resource)];
         finalURL = [finalURL URLByAppendingPathExtension:(__bridge NSString *)resourceType];
     } else {
+        // Search all files for something that matches this name
         NSArray *fileNames = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:finalURL
                                                            includingPropertiesForKeys:nil
                                                                               options:NSDirectoryEnumerationSkipsSubdirectoryDescendants | NSDirectoryEnumerationSkipsPackageDescendants
@@ -265,6 +314,7 @@ static BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStrin
         BOOL winning = NO;
         for (NSURL *url in fileNames) {
             NSString *name = url.lastPathComponent;
+            // case-sensitive?
             if ([name.stringByDeletingPathExtension isEqualToString:(__bridge NSString *)(resource)] ||
                 [name isEqualToString:(__bridge NSString *)(resource)]) {
                 winning = YES;
@@ -520,7 +570,10 @@ OPHook2(void *, CreateWithAliasData, CFDataRef, aliasData, BOOL, arg1) {
         }
     }
     
-    return ABPairBindingsWithURL(OPOldCall(aliasData, arg1), customBinding, resolved);
+    void *rtn = OPOldCall(aliasData, arg1);
+    ABLog("Alias Data: %@", ABStringFromOSType(ABBindingGetType(rtn)));
+    
+    return ABPairBindingsWithURL(rtn, customBinding, resolved);
 }
 
 OPHook4(void *, CreateWithTypeInfo, OSType, creator, OSType, iconType, CFStringRef, extension, BOOL, arg3) {
@@ -648,7 +701,6 @@ OPHook1(CFStringRef, __UTTypeCopyIconFileName, CFStringRef, arg0) {
     return rtn;
 }
 
-
 #import <mach-o/dyld.h>
 
 #pragma mark - Initialize
@@ -661,17 +713,7 @@ OPInitialize {
     char *executable = strrchr(argv, '/');
     executable = (executable == NULL) ? argv : executable + 1;
     
-    // Quicklook should always return the original image
-    //!TODO: Expand this list to photoshop/acorn/preview/pixelmator/sketch
-    //! basically anything that has its UTI Role set to editor (viewer?) for the given file
-    //! but only for the safety methods CFURLCreateData, CGDataProviderCreateWith(URL/FIlename), CGImageSourceCreatewithURL
-    if (strcmp(executable, "quicklookd") == 0 ||
-        strcmp(executable, "QuickLookSatellite") == 0) {
-        return;
-    }
-    
     ThemePath = [NSURL fileURLWithPath:@"/Library/AutumnBoard/Themes/Fladder2"];
-
     CreateWithBookmarkData = OPFindSymbol("__ZN14BindingManager22CreateWithBookmarkDataEPK8__CFDatab");
     CreateWithResourceURL = OPFindSymbol("__ZN14BindingManager21CreateWithResourceURLEPK7__CFURLb");
     CreateWithTypeInfo = OPFindSymbol("__ZN14BindingManager18CreateWithTypeInfoEjjPK10__CFStringb");
@@ -684,15 +726,6 @@ OPInitialize {
     CreateWithDeviceID = OPFindSymbol("__ZN14BindingManager18CreateWithDeviceIDEPKcb");
     
     __UTTypeCopyIconFileName = OPFindSymbol("__UTTypeCopyIconFileName");
-
-//    OPHookFunction(__UTTypeCopyIconFileName);
-    OPHookFunction(CGImageSourceCreateWithURL);
-    OPHookFunction(CGDataProviderCreateWithFilename);
-    OPHookFunction(CGDataProviderCreateWithURL);
-    OPHookFunction(CFURLCreateData);
-    
-    OPHookFunction(CFBundleCopyResourceURLInDirectory);
-    OPHookFunction(CFBundleCopyResourceURL);
     
     OPHookFunction(CreateWithTypeInfo);
     OPHookFunction(CreateWithFolder);
@@ -701,4 +734,22 @@ OPInitialize {
     OPHookFunction(CreateWithURL);
     OPHookFunction(CreateWithFileInfo);
     OPHookFunction(CreateWithUTI);
+    
+    OPHookFunction(CFBundleCopyResourceURLInDirectory);
+    OPHookFunction(CFBundleCopyResourceURL);
+    
+    // Quicklook should always return the original image
+    //!TODO: Expand this list to photoshop/acorn/preview/pixelmator/sketch
+    //! basically anything that has its UTI Role set to editor (viewer?) for the given file
+    //! but only for the safety methods CFURLCreateData, CGDataProviderCreateWith(URL/FIlename), CGImageSourceCreatewithURL
+    if (strcmp(executable, "quicklookd") == 0 ||
+        strcmp(executable, "QuickLookSatellite") == 0) {
+        return;
+    }
+    
+//    OPHookFunction(__UTTypeCopyIconFileName);
+    OPHookFunction(CGImageSourceCreateWithURL);
+    OPHookFunction(CGDataProviderCreateWithFilename);
+    OPHookFunction(CGDataProviderCreateWithURL);
+    OPHookFunction(CFURLCreateData);
 }
