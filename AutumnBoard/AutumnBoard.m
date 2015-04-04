@@ -92,18 +92,12 @@ static NSString *ABStringFromOSType(OSType type) {
 
 static void (*ReleaseBinding)(void *binding);
 static void (*FindAndRelease)(IconRef icon);
+static void *(*FindAndGetRetainCount)(IconRef ref);
 
 static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) {
     IconRef destIcon = ABBindingGetIconRef(destination);
-    
-    void *def = CreateWithLegacyIconRef(destIcon, YES);
-    uint32_t magic = ABBindingGetMagic(def) & 0xfff;
     uint32_t destMagic = ABBindingGetMagic(destination) & 0xfff;
-    
-    // What we are doing here is getting the binding for which the icon of the destination was originally registered
-    // and seeing if that specific Binding is a UTI binding or TypeInfo binding meaning that the icon of this specific
-    // icon is actually the default one for its type, in this case we can feel safe in replacing it
-    
+
     // Here are the magic values. For some reason I am only ever able to consistently get the last three bytes of it
     // so we are just checking against those
     // 0x12e560: File Info
@@ -115,50 +109,51 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
     // 0x12e830: Variant
     // 0x1298a0: SideFault
     // 0x12e8e0: Composite
-    ABLog("Binding UTI %@ %@, %x, (%@)", url.path, ABBindingCopyUTI(destination), magic, ABBindingCopyUTI(def));
-    ABLogBinding(destination);
+    
+    if (destMagic == 0x6d0) {
+        ABLogBinding(destination);
+    }
     
     //!TODO: Create a mapping for all OSTypes in IconsCore to a UTI frm CoreTypes.bundle
     //! and then check it against the OSType in (dest + 0x48) where destMagic == 0x560
-    if (magic == 0xb80 && !custom) {
+    
+    // We don't want to do this for the bundle binding because they have a different
+    // source of icons (they are covered in the nameOfIconFile and customIconForURL)
+    // if their icons don't exist
+    if (destMagic != 0x780 && !custom) {
+        //!TODO: if this is a CompositeBinding then we want to set the background IconRef
+        //!rather than replacing it
+        
         // ABBindingCopyUTI doesnt follow the create rule despite its name
         NSString *uti = (__bridge NSString *)(ABBindingCopyUTI(destination));
         if (uti) {
-            ABLog("MATCH PLEASE: %p, %p, %p", destIcon, ABBindingGetIconRef(def), ABBindingGetIconRef(CreateWithUTI((__bridge CFStringRef)uti, YES)));
-            
             NSURL *url = customIconForUTI(uti);
             if (url) {
                 custom = CreateWithResourceURL((__bridge CFURLRef)url, NO);
             }
-        } else if (url) {
-            //!TODO: Figure out if this is necessary
+        }
+        
+        if (url && !custom) {
             // Get the UTI ourselves from the extension or something
             NSURL *customURL = customIconForExtension(url.pathExtension);
             if (customURL)
                 custom = CreateWithResourceURL((__bridge CFURLRef)customURL, NO);
         }
-    }
-    
-    if (!custom) {
-        OSType ostype = ABBindingGetType(destination);
-        if ([url.pathExtension isEqualToString:@"app"]) {
-            NSLog(@"Got Type: %@", ABStringFromOSType(ostype));
-        }
-        if (ostype != 0 && ostype != '????') {
-            NSURL *customURL = customIconForOSType(ABStringFromOSType(ostype));
-            if (customURL) {
-                custom = CreateWithResourceURL((__bridge CFURLRef)customURL, NO);
+        
+        if (!custom) {
+            OSType ostype = ABBindingGetType(destination);
+            if (ostype != 0 && ostype != '????') {
+                NSURL *customURL = customIconForOSType(ABStringFromOSType(ostype));
+                if (customURL) {
+                    custom = CreateWithResourceURL((__bridge CFURLRef)customURL, NO);
+                }
             }
         }
     }
     
-    
-    if (custom) {
-        // calls function at *(prt + 0x68) basically
+    if (custom)
+        // calls member function at *(prt + 0x68)
         OverrideIconRef(destIcon, ABBindingGetIconRef(custom));
-    } else {
-        RemoveIconRefOverride(destIcon);
-    }
     
     return destination;
 }
@@ -198,7 +193,12 @@ static NSString *nameOfIconForBundle(NSBundle *bundle) {
     NSDictionary *info = [bundle infoDictionary];
     if (!info)
         return nil;
+    
     NSString *iconName = info[@"CFBundleIconFile"];
+    if (iconName)
+        return iconName;
+    
+    iconName = info[@"NSPrefPaneIconFile"];
     return iconName;
 }
 
@@ -210,7 +210,12 @@ static NSURL *iconForBundle(NSBundle *bundle) {
     }
     
     NSString *iconName = nameOfIconForBundle(bundle);
-    if (!iconName) {
+    // This bundle has no icon, return our generic one
+    if (!iconName || iconName.length == 0) {
+        //!TODO: Even if there is an icon name, check to see if it exists
+        ABLog("No Icon for %@", bundle);
+        if (bundle.infoDictionary.count && bundle.bundlePath.pathExtension.length)
+            return customIconForExtension(bundle.bundlePath.pathExtension);
         return nil;
     }
     
@@ -340,15 +345,39 @@ static NSURL *customIconForURL(NSURL *url) {
     // Step 2, check if this is a bundle
     NSBundle *tentativeBundle = [NSBundle bundleWithURL:url];
     if (tentativeBundle) {
-        if (hasBundle(tentativeBundle)) {
-            return iconForBundle(tentativeBundle);
-        }
+        return iconForBundle(tentativeBundle);
     }
     
     return nil;
 }
 
 #pragma mark - UTI Helpers
+
+static NSURL *URLForOSType(NSString *type) {
+    return [[[ThemePath URLByAppendingPathComponent:@"OSTypes"] URLByAppendingPathComponent:type] URLByAppendingPathExtension:@"icns"];
+}
+
+static NSURL *customIconForOSType(NSString *type) {
+    // step 1, check if we have the actual type.icns
+    NSURL *tentativeURL = URLForOSType(type);
+    NSFileManager *manager = [NSFileManager defaultManager];
+    if ([manager fileExistsAtPath:tentativeURL.path]) {
+        return tentativeURL;
+    }
+    
+    // step 2, convert to uti and go ham
+    // step 2: get all of the utis for this extension and check against that
+    NSArray *utis = (__bridge_transfer NSArray *)UTTypeCreateAllIdentifiersForTag(kUTTagClassOSType, (__bridge CFStringRef)type, NULL);
+    for (NSString *uti in utis) {
+        // Use this so it also checks other variants of this extension
+        // such as jpeg vs jpg in addition to public.jpeg
+        tentativeURL = customIconForUTI(uti);
+        if (tentativeURL)
+            return tentativeURL;
+    }
+    
+    return nil;
+}
 
 static NSURL *URLForUTIFile(NSString *name) {
     return [[[ThemePath URLByAppendingPathComponent:@"UTIs"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"];
@@ -374,6 +403,15 @@ static NSURL *customIconForUTI(NSString *uti) {
         }
     }
     
+    // step 3: get all of the ostypes for this uti and check that too
+    NSArray *ostypes = (__bridge_transfer NSArray *)UTTypeCopyAllTagsWithClass((__bridge CFStringRef)(uti), kUTTagClassOSType);
+    for (NSString *ostype in ostypes) {
+        tentativeURL = URLForOSType(ostype);
+        if ([manager fileExistsAtPath:tentativeURL.path]) {
+            return tentativeURL;
+        }
+    }
+    
     return nil;
 }
 
@@ -390,32 +428,6 @@ static NSURL *customIconForExtension(NSString *extension) {
     
     // step 2: get all of the utis for this extension and check against that
     NSArray *utis = (__bridge_transfer NSArray *)UTTypeCreateAllIdentifiersForTag(kUTTagClassFilenameExtension, (__bridge CFStringRef)extension, NULL);
-    for (NSString *uti in utis) {
-        // Use this so it also checks other variants of this extension
-        // such as jpeg vs jpg in addition to public.jpeg
-        tentativeURL = customIconForUTI(uti);
-        if (tentativeURL)
-            return tentativeURL;
-    }
-    
-    return nil;
-}
-
-static NSURL *URLForOSType(NSString *type) {
-    return [[[ThemePath URLByAppendingPathComponent:@"OSTypes"] URLByAppendingPathComponent:type] URLByAppendingPathExtension:@"icns"];
-}
-
-static NSURL *customIconForOSType(NSString *type) {
-    // step 1, check if we have the actual type.icns
-    NSURL *tentativeURL = URLForOSType(type);
-    NSFileManager *manager = [NSFileManager defaultManager];
-    if ([manager fileExistsAtPath:tentativeURL.path]) {
-        return tentativeURL;
-    }
-    
-    // step 2, convert to uti and go ham
-    // step 2: get all of the utis for this extension and check against that
-    NSArray *utis = (__bridge_transfer NSArray *)UTTypeCreateAllIdentifiersForTag(kUTTagClassOSType, (__bridge CFStringRef)type, NULL);
     for (NSString *uti in utis) {
         // Use this so it also checks other variants of this extension
         // such as jpeg vs jpg in addition to public.jpeg
@@ -728,16 +740,6 @@ void (*CGImageReadCreateWithURL)(CFURLRef arg0, int arg1, int arg2);
 }
 */
 
-/*
-                      __ZN16RegisteredImages22CopyImageByTypeCreatorEjjPP16OpaqueISImageRef:        // RegisteredImages::CopyImageByTypeCreator(unsigned int, unsigned int, OpaqueISImageRef**)*/
-
-void *(*CopyImageByTypeCreator)(OSType creator, OSType type, void **imageRef);
-OPHook3(void *, CopyImageByTypeCreator, OSType, creator, OSType, type, void **, imageRef) {
-    void *rtn = OPOldCall(creator, type, imageRef);
-    ABLog("Copy Image: %p", rtn);
-    return rtn;
-}
-
 #import <mach-o/dyld.h>
 
 #pragma mark - Initialize
@@ -763,6 +765,7 @@ OPInitialize {
     
     ReleaseBinding = OPFindSymbol("__ZN14BindingManager7ReleaseEP7Bindingb");
     FindAndRelease = OPFindSymbol("__ZN14BindingManager14FindAndReleaseEP13OpaqueIconRef");
+    FindAndGetRetainCount = OPFindSymbol("__ZN14BindingManager21FindAndGetRetainCountEP13OpaqueIconRef");
     
     CreateWithBookmarkData = OPFindSymbol("__ZN14BindingManager22CreateWithBookmarkDataEPK8__CFDatab");
     CreateWithResourceURL = OPFindSymbol("__ZN14BindingManager21CreateWithResourceURLEPK7__CFURLb");
@@ -779,10 +782,6 @@ OPInitialize {
     __UTTypeCopyIconFileName = OPFindSymbol("__UTTypeCopyIconFileName");
     CGImageReadCreateWithURL = OPFindSymbol("_CGImageReadCreateWithURL");
 
-    
-    CopyImageByTypeCreator = OPFindSymbol("__ZN16RegisteredImages22CopyImageByTypeCreatorEjjPP16OpaqueISImageRef");
-    OPHookFunction(CopyImageByTypeCreator);
-    
 //    OPHookFunction(__UTTypeCopyIconFileName);
 //    OPHookFunction(CFURLCreateDataAndPropertiesFromResource);
 //    OPHookFunction(FileInfoBinding);
@@ -800,5 +799,5 @@ OPInitialize {
     OPHookFunction(CreateWithBookmarkData);
     OPHookFunction(CreateWithURL);
     OPHookFunction(CreateWithFileInfo);
-//    OPHookFunction(CreateWithUTI);
+    OPHookFunction(CreateWithUTI);
 }
