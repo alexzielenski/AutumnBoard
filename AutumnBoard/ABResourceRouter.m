@@ -82,13 +82,6 @@ OPHook2(CGImageSourceRef, CGImageSourceCreateWithURL, CFURLRef, url, CFDictionar
 }
 
 OPInitialize {
-    char argv[MAXPATHLEN];
-    unsigned int buffSize = MAXPATHLEN;
-    _NSGetExecutablePath(argv, &buffSize);
-    
-    char *executable = strrchr(argv, '/');
-    executable = (executable == NULL) ? argv : executable + 1;
-    
     OPHookFunction(CFBundleCopyResourceURLInDirectory);
     OPHookFunction(CFBundleCopyResourceURL);
     
@@ -96,10 +89,11 @@ OPInitialize {
     //!TODO: Expand this list to photoshop/acorn/preview/pixelmator/sketch
     //! basically anything that has its UTI Role set to editor (viewer?) for the given file
     //! but only for the safety methods CFURLCreateData, CGDataProviderCreateWith(URL/FIlename), CGImageSourceCreatewithURL
-    if (strcmp(executable, "quicklookd") == 0 ||
-        strcmp(executable, "QuickLookSatellite") == 0) {
+
+    if (ABIsInQuicklook()) {
         return;
     }
+
     
     //    OPHookFunction(__UTTypeCopyIconFileName);
     OPHookFunction(CGImageSourceCreateWithURL);

@@ -41,6 +41,7 @@ static void ABBindingSetIconRef(ABBindingRef binding, IconRef icon);
 static CFURLRef ABLinkBindingGetURL(ABBindingRef binding);
 static CFURLRef ABBundleBindingGetURL(ABBindingRef binding);
 static CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding);
+static UInt64 ABFileInfoBindingInfoGetFlags(ABBindingRef binding);
 static ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding);
 
 // OSType, EXT, UTI, FLAGS
@@ -64,6 +65,7 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
         class != ABBindingClassSideFault &&
         class != ABBindingClassCustom &&
         class != ABBindingClassVolume &&
+        class != ABBindingClassComposite &&
         !customURL) {
         
         // ABBindingCopyUTI doesnt follow the create rule despite its name
@@ -81,12 +83,12 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
         
         if (!customURL || sidebar) {
             OSType ostype = ABBindingGetOSType(destination);
-            
+                        
             if (sidebar) {
                 ostype = GetSidebarVariantType(ABBindingGetOSType(destination),
                                                NULL,
                                                ABBindingCopyUTI(destination),
-                                               0);
+                                               ABFileInfoBindingInfoGetFlags(destination));
             }
             
             // Getting an OS Type off of the path for dirs breaks
@@ -103,7 +105,7 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
                     ostype = kGenericExtensionIcon;
                 else if (info.flags & kLSItemInfoIsContainer)
                     ostype = kGenericFolderIcon;
-                else if ([[NSFileManager defaultManager] isExecutableFileAtPath:resolved.path])
+                else if (ABFileInfoBindingInfoGetFlags(destination) == 1) // executable
                     ostype = 'xTol';
                 else
                     ostype = info.filetype;
@@ -115,17 +117,21 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
         
     }
     
-    if (customURL) {
+    if ([url.pathExtension isEqualToString:@"mp3"]) {
+        ABLog("WTF: %d, %@, %d, %@", ABFileInfoBindingInfoGetFlags(destination), ABStringFromOSType(ABBindingGetOSType(destination)), class, url);
+    }
+    if (customURL && class != ABBindingClassComposite) {
         ABBindingRef custom = CreateWithResourceURL((__bridge CFURLRef)customURL, YES);
         
         // If we override the binding, these binding classes would not ever
         // return to this method with updated OSTypes
         if (class == ABBindingClassFileInfo ||
             class == ABBindingClassUTI ||
-            class == ABBindingClassVolume)
+            class == ABBindingClassVolume) {
             ABBindingSetIconRef(destination, ABBindingGetIconRef(custom));
-        else
+        } else {
             ABBindingOverride(destination, custom);
+        }
     }
     
     return destination;
@@ -219,6 +225,13 @@ static CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassFileInfo)
         return *(CFStringRef *)((uint8_t *)binding + 0x40);
     return NULL;
+}
+
+static UInt64 ABFileInfoBindingInfoGetFlags(ABBindingRef binding) {
+    if (ABBindingGetBindingClass(binding) == ABBindingClassFileInfo) {
+        return *(UInt64 *)((uint8_t *)binding + 0x50);
+    }
+    return 0;
 }
 
 static CFURLRef ABLinkBindingGetURL(ABBindingRef binding) {

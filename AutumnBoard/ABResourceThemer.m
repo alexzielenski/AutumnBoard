@@ -290,3 +290,8 @@ NSURL *customIconForExtension(NSString *extension) {
     
     return nil;
 }
+
+BOOL ABIsInQuicklook() {
+    NSString *name = [[NSProcessInfo processInfo] processName];
+    return [name isEqualToString:@"quicklookd"] || [name isEqualToString:@"QuickLookSatellite"];
+}
