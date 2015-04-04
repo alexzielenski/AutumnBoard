@@ -8,6 +8,7 @@
 
 #import "ABResourceThemer.h"
 #import <Opee/Opee.h>
+#import "ABLogging.h"
 
 static NSURL *ThemePath;
 static NSString *nameOfIconForBundle(NSBundle *bundle);
@@ -109,7 +110,8 @@ BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStringRef re
         }
     }
     
-    if (resourceType != NULL && resource != NULL &&
+    if (resourceType != NULL &&
+        resource != NULL &&
         CFStringGetLength(resourceType) > 0 &&
         CFStringGetLength(resource) > 0) {
         // we know exactly what file we are looking for
@@ -149,7 +151,7 @@ BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStringRef re
 }
 
 NSURL *replacementURLForURL(NSURL *url) {
-    if (!url)
+    if (!url || !url.isFileURL)
         return nil;
     
     // Step 1, check absolute paths
