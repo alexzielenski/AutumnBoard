@@ -27,14 +27,18 @@ typedef NS_ENUM(NSUInteger, ABBindingClass) {
 
 static UInt32 ABBindingGetMagic(ABBindingRef binding);
 static CFStringRef ABBindingCopyUTI(ABBindingRef arg0);
-static UInt32 ABBindingGetOSType(ABBindingRef binding);
-static IconRef ABBindingGetIconRef(ABBindingRef binding);
-static void ABBindingSetIconRef(ABBindingRef binding, IconRef icon);
+
 static ABBindingClass ABBindingGetBindingClass(ABBindingRef binding);
 static bool ABBindingIsSidebarVariant(ABBindingRef binding);
 static void ABBindingOverride(ABBindingRef destination, ABBindingRef custom);
-static CFStringRef ABBindingGetDescription(ABBindingRef binding);
 
+static CFStringRef ABBindingGetDescription(ABBindingRef binding);
+static CFURLRef ABBindingGetURL(ABBindingRef binding);
+static UInt32 ABBindingGetOSType(ABBindingRef binding);
+static IconRef ABBindingGetIconRef(ABBindingRef binding);
+static void ABBindingSetIconRef(ABBindingRef binding, IconRef icon);
+
+static CFURLRef ABLinkBindingGetURL(ABBindingRef binding);
 static CFURLRef ABBundleBindingGetURL(ABBindingRef binding);
 static CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding);
 static ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding);
@@ -54,7 +58,12 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
     NSURL *customURL = customIconForURL(url);
     
     if (class == ABBindingClassBundle && !customURL)
-        customURL = iconForBundle([NSBundle bundleWithURL:(__bridge NSURL *)(ABBundleBindingGetURL(destination))]);
+        customURL = iconForBundle([NSBundle bundleWithURL:(__bridge NSURL *)(ABBindingGetURL(destination))]);
+    
+    if (class == ABBindingClassComposite ||
+        class == ABBindingClassLink) {
+        ABLog("FOUND COMPOSITE AT %@ %lx", ABBindingGetURL(destination), class);
+    }
     
     if (class != ABBindingClassBundle &&
         class != ABBindingClassSideFault &&
@@ -91,13 +100,21 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
                 // Dont apply the generic folder icon to packages
                 // See if its a dir with a weird extension
                 LSItemInfoRecord info;
-                LSCopyItemInfoForURL((__bridge CFURLRef)url, kLSRequestBasicFlagsOnly, &info);
+                NSURL *resolved = [NSURL URLByResolvingAliasFileAtURL:url
+                                                              options:NSURLBookmarkResolutionWithoutUI | NSURLBookmarkResolutionWithoutMounting
+                                                                error:nil];
+                LSCopyItemInfoForURL((__bridge CFURLRef)resolved, kLSRequestBasicFlagsOnly, &info);
                 if (info.flags & kLSItemInfoIsPackage)
                     ostype = kGenericExtensionIcon;
                 else if (info.flags & kLSItemInfoIsContainer)
                     ostype = kGenericFolderIcon;
             }
             
+            if (class == ABBindingClassLink) {
+                ABLogBinding(destination);
+                ABLog("COMPOSITE %@", ABStringFromOSType(ostype));
+            }
+
             if (ostype != 0 && ostype != '????')
                 customURL = customIconForOSType(ABStringFromOSType(ostype));
         }
@@ -107,8 +124,11 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
     if (customURL) {
         ABBindingRef custom = CreateWithResourceURL((__bridge CFURLRef)customURL, YES);
         
-        // hax
-        if (class != ABBindingClassBundle)
+        // If we override the binding, these binding classes would not ever
+        // return to this method with updated OSTypes
+        if (class == ABBindingClassFileInfo ||
+            class == ABBindingClassUTI ||
+            class == ABBindingClassVolume)
             ABBindingSetIconRef(destination, ABBindingGetIconRef(custom));
         else
             ABBindingOverride(destination, custom);
@@ -194,11 +214,22 @@ static void ABBindingOverride(ABBindingRef destination, ABBindingRef custom) {
     overrideBinding(destination, custom);
 }
 
+static CFURLRef ABBindingGetURL(ABBindingRef binding) {
+    CFURLRef url = ABBundleBindingGetURL(binding) ?: ABLinkBindingGetURL(binding);
+    return url;
+}
+
 #pragma mark - Class-Specific
 
 static CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassFileInfo)
         return *(CFStringRef *)((uint8_t *)binding + 0x40);
+    return NULL;
+}
+
+static CFURLRef ABLinkBindingGetURL(ABBindingRef binding) {
+    if (ABBindingGetBindingClass(binding) == ABBindingClassLink)
+        return *(CFURLRef *)((uint8_t *)binding + 0x58);
     return NULL;
 }
 
@@ -214,7 +245,6 @@ static ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding) {
     return NULL;
 }
 
-#define ABLogBinding(BINDING) ABLog("%@ [%p]", ABBindingGetDescription(BINDING), BINDING);
 static CFStringRef ABBindingGetDescription(ABBindingRef binding) {
     void *deref = *(void **)binding;
     

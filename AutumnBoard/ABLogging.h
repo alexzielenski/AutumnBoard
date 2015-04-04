@@ -25,5 +25,6 @@ syslog(level, "%s", _utf8); \
 } while (false)
 
 #define ABLog(FORMAT, ...) OPLog(OPLogLevelNotice, FORMAT, ## __VA_ARGS__)
+#define ABLogBinding(BINDING) ABLog("%@ [%p]", ABBindingGetDescription(BINDING), BINDING);
 
 #endif
