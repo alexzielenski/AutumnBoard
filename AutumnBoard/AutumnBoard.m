@@ -160,8 +160,6 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
         destMagic != 0x6d0 &&
         destMagic != 0xa50 &&
         !custom) {
-        //!TODO: if this is a CompositeBinding then we want to set the background IconRef
-        //!rather than replacing it
         
         // ABBindingCopyUTI doesnt follow the create rule despite its name
         NSString *uti = (__bridge NSString *)(ABBindingCopyUTI(destination));
@@ -194,14 +192,17 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
             
             // Getting an OS Type off of the path for dirs breaks
             // so use the folder OS Type if this is an unidentifiable directory
-            if ((ostype == 0 || ostype == '????') && url && !uti) {
-                // See if its a dir with a weird extension
-                BOOL isDir = NO;
-                [[NSFileManager defaultManager] fileExistsAtPath:url.path isDirectory:&isDir];
-                if (isDir)
+            if ((ostype == 0 || ostype == '????') && url && !uti && destMagic != 0x780) {
+                // Dont apply the generic folder icon to packages
+                    // See if its a dir with a weird extension
+                LSItemInfoRecord info;
+                LSCopyItemInfoForURL((__bridge CFURLRef)url, kLSRequestBasicFlagsOnly, &info);
+                if (info.flags & kLSItemInfoIsPackage)
+                    ostype = kGenericExtensionIcon;
+                else if (info.flags & kLSItemInfoIsContainer)
                     ostype = kGenericFolderIcon;
             }
-            
+
             if (ostype != 0 && ostype != '????') {
                 NSURL *customURL = customIconForOSType(ABStringFromOSType(ostype));
                 if (customURL) {
@@ -210,9 +211,6 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
             }
         }
     }
-
-    ABLog("Theming with flags at %@ %lld and OSType: %@", url, ABBindingGetVariantFlags(destination), ABStringFromOSType(ABBindingGetType(destination)));
-
     
     if (custom) {
         // ugh...i hate hax
@@ -281,7 +279,6 @@ static NSURL *iconForBundle(NSBundle *bundle) {
     // This bundle has no icon, return our generic one
     if (!iconName || iconName.length == 0) {
         //!TODO: Even if there is an icon name, check to see if it exists
-        ABLog("No Icon for %@", bundle);
         if (bundle.infoDictionary.count && bundle.bundlePath.pathExtension.length)
             return customIconForExtension(bundle.bundlePath.pathExtension);
         return nil;
