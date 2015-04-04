@@ -15,7 +15,8 @@ static NSURL *ThemePath;
 static void *(*CreateWithResourceURL)(CFURLRef url, BOOL arg1);
 static void *(*CreateWithUTI)(CFStringRef uti, BOOL arg1);
 static void *(*CreateWithLegacyIconRef)(IconRef, BOOL);
-void *(*CreateWithTypeInfo)(OSType arg0, OSType arg1, CFStringRef extension, BOOL arg3);
+static void *(*CreateWithTypeInfo)(OSType arg0, OSType arg1, CFStringRef extension, BOOL arg3);
+static void *(*FindAndRetain)(IconRef ref, BOOL arg1);
 
 static NSURL *customIconForUTI(NSString *uti);
 static NSURL *customIconForURL(NSURL *url);
@@ -86,6 +87,20 @@ static UInt64 ABBindingGetVariantFlags(void *binding) {
     return getFlags(binding);
 }
 
+static BOOL ABBindingIsSidebarVariant(void *binding) {
+    if (ABBindingGetVariantFlags(binding) == 0x6) {
+        UInt32 flags = *(OSType *)((uint8_t *)binding + 0x48);
+        return flags != 0;
+    }
+    
+    return NO;
+}
+
+// also holds extension for FileInfoBinding
+static void *ABBindingGetVariantBinding(void *binding) {
+    return *(void **)((uint8_t *)binding + 0x40);
+}
+
 static void ABBindingOverride(void *destination, void *custom) {
     // This is the actual stuff that replaces the icons
     // dont listen to what other people tell you, this IS the magic
@@ -117,7 +132,6 @@ static NSString *ABStringFromOSType(OSType type) {
     return (__bridge_transfer NSString *)UTCreateStringForOSType(type);
 }
 // OSType, EXT, UTI, FLAGS
-
 static uint32_t (*GetSidebarVariantType)(OSType type, CFStringRef extension, CFStringRef uti, UInt64 flags);
 static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) {
     if (GetSidebarVariantType == NULL) {
@@ -136,21 +150,13 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
     // 0x12e830: Variant
     // 0x1298a0: SideFault
     // 0x12e8e0: Composite
-    
-    if (destMagic == 0x6d0) {
-        ABLogBinding(destination);
-        ABLog("Custom Binding at %@", url);
-    }
-    
-    //!TODO: Create a mapping for all OSTypes in IconsCore to a UTI frm CoreTypes.bundle
-    //! and then check it against the OSType in (dest + 0x48) where destMagic == 0x560
-    
+
     // We don't want to do this for the bundle binding because they have a different
     // source of icons (they are covered in the nameOfIconFile and customIconForURL)
     // if their icons don't exist
+    BOOL sidebar = ABBindingIsSidebarVariant(destination);
     if (destMagic != 0x780 &&
         destMagic != 0x8e0 &&
-        destMagic != 0x830 &&
         destMagic != 0x6d0 &&
         destMagic != 0xa50 &&
         !custom) {
@@ -165,7 +171,7 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
         if (uti) {
             NSURL *url = customIconForUTI(uti);
             if (url) {
-                custom = CreateWithResourceURL((__bridge CFURLRef)url, NO);
+                custom = CreateWithResourceURL((__bridge CFURLRef)url, YES);
             }
         }
         
@@ -173,11 +179,18 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
             // Get the UTI ourselves from the extension or something
             NSURL *customURL = customIconForExtension(url.pathExtension);
             if (customURL)
-                custom = CreateWithResourceURL((__bridge CFURLRef)customURL, NO);
+                custom = CreateWithResourceURL((__bridge CFURLRef)customURL, YES);
         }
         
-        if (!custom) {
+        if (!custom || sidebar) {
             OSType ostype = ABBindingGetType(destination);
+            
+            if (sidebar) {
+                ostype = GetSidebarVariantType(ABBindingGetType(destination),
+                                               NULL,
+                                               ABBindingCopyUTI(destination),
+                                               ABBindingGetVariantFlags(destination));
+            }
             
             // Getting an OS Type off of the path for dirs breaks
             // so use the folder OS Type if this is an unidentifiable directory
@@ -192,14 +205,22 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
             if (ostype != 0 && ostype != '????') {
                 NSURL *customURL = customIconForOSType(ABStringFromOSType(ostype));
                 if (customURL) {
-                    custom = CreateWithResourceURL((__bridge CFURLRef)customURL, NO);
+                    custom = CreateWithResourceURL((__bridge CFURLRef)customURL, YES);
                 }
             }
         }
     }
+
+    ABLog("Theming with flags at %@ %lld and OSType: %@", url, ABBindingGetVariantFlags(destination), ABStringFromOSType(ABBindingGetType(destination)));
+
     
     if (custom) {
-        ABBindingOverride(destination, custom);
+        // ugh...i hate hax
+        if (ABBindingGetVariantFlags(destination) == 0x1 ||
+            ABBindingGetVariantFlags(destination) == 0x6) {
+            *(IconRef *)((uint8_t *)destination + 0x8) = ABBindingGetIconRef(custom);
+        } else
+            ABBindingOverride(destination, custom);
     }
     
     return destination;
@@ -570,10 +591,7 @@ OPHook2(void *, CreateWithAliasData, CFDataRef, aliasData, BOOL, arg1) {
         }
     }
     
-    void *rtn = OPOldCall(aliasData, arg1);
-    ABLog("Alias Data: %@", ABStringFromOSType(ABBindingGetType(rtn)));
-    
-    return ABPairBindingsWithURL(rtn, customBinding, resolved);
+    return ABPairBindingsWithURL(OPOldCall(aliasData, arg1), customBinding, resolved);
 }
 
 OPHook4(void *, CreateWithTypeInfo, OSType, creator, OSType, iconType, CFStringRef, extension, BOOL, arg3) {
@@ -610,6 +628,11 @@ OPHook2(void *, CreateWithDeviceID, const char *, device, BOOL, arg1) {
     return ABPairBindings(OPOldCall(device, arg1), NULL);
 }
 
+void *(*CreateVariant)(void *binding, unsigned long long, unsigned long long, BOOL);
+OPHook4(void *, CreateVariant, void *, binding, unsigned long long, arg1, unsigned long long, arg2, BOOL, arg3) {
+    return ABPairBindings(OPOldCall(binding, arg1, arg2, arg3), NULL);
+}
+
 #pragma mark URL Rerouting
 
 OPHook4(CFURLRef, CFBundleCopyResourceURL, CFBundleRef, bundle, CFStringRef, resourceName, CFStringRef, resourceType, CFStringRef, subDirName) {
@@ -624,7 +647,6 @@ OPHook4(CFURLRef, CFBundleCopyResourceURL, CFBundleRef, bundle, CFStringRef, res
     NSBundle *nsBundle = [NSBundle bundleWithPath:((__bridge_transfer NSURL *)CFBundleCopyBundleURL(bundle)).path];
     if (!(hasBundle(nsBundle) && hasResourceForBundle(nsBundle, resourceName, resourceType, subDirName, &finalURL))) {
         finalURL = OPOldCall(bundle, resourceName, resourceType, subDirName);
-    } else {
     }
     
     return finalURL;
@@ -701,6 +723,25 @@ OPHook1(CFStringRef, __UTTypeCopyIconFileName, CFStringRef, arg0) {
     return rtn;
 }
 
+@interface NSImage (Private)
+- (void)_drawMappingAlignmentRectToRect:(struct CGRect)arg1 withState:(unsigned long long)arg2 backgroundStyle:(int)arg3 operation:(unsigned long long)arg4 fraction:(double)arg5 flip:(BOOL)arg6 hints:(id)arg7;
+@end
+
+ZKSwizzleInterface(ABImage, NSSidebarImage, NSImage)
+@implementation ABImage
+
+
+- (void)_drawMappingAlignmentRectToRect:(struct CGRect)arg1 withState:(unsigned long long)arg2 backgroundStyle:(int)arg3 operation:(unsigned long long)arg4 fraction:(double)arg5 flip:(BOOL)arg6 hints:(id)arg7 {
+    [super _drawMappingAlignmentRectToRect:arg1
+                                 withState:0x0
+                           backgroundStyle:arg2
+                                 operation:arg4
+                                  fraction:arg5
+                                      flip:arg6
+                                     hints:arg7];
+}
+@end
+
 #import <mach-o/dyld.h>
 
 #pragma mark - Initialize
@@ -712,7 +753,7 @@ OPInitialize {
     
     char *executable = strrchr(argv, '/');
     executable = (executable == NULL) ? argv : executable + 1;
-    
+
     ThemePath = [NSURL fileURLWithPath:@"/Library/AutumnBoard/Themes/Fladder2"];
     CreateWithBookmarkData = OPFindSymbol("__ZN14BindingManager22CreateWithBookmarkDataEPK8__CFDatab");
     CreateWithResourceURL = OPFindSymbol("__ZN14BindingManager21CreateWithResourceURLEPK7__CFURLb");
@@ -724,8 +765,11 @@ OPInitialize {
     CreateWithFolder = OPFindSymbol("__ZN14BindingManager16CreateWithFolderEsiiaab");
     CreateWithLegacyIconRef = OPFindSymbol("__ZN14BindingManager23CreateWithLegacyIconRefEP13OpaqueIconRefb");
     CreateWithDeviceID = OPFindSymbol("__ZN14BindingManager18CreateWithDeviceIDEPKcb");
+    CreateVariant = OPFindSymbol("__ZN14BindingManager13CreateVariantEP7Bindingyyb");
     
     __UTTypeCopyIconFileName = OPFindSymbol("__UTTypeCopyIconFileName");
+    
+    FindAndRetain = OPFindSymbol("__ZN14BindingManager13FindAndRetainEP13OpaqueIconRef");
     
     OPHookFunction(CreateWithTypeInfo);
     OPHookFunction(CreateWithFolder);
@@ -734,6 +778,7 @@ OPInitialize {
     OPHookFunction(CreateWithURL);
     OPHookFunction(CreateWithFileInfo);
     OPHookFunction(CreateWithUTI);
+    OPHookFunction(CreateVariant);
     
     OPHookFunction(CFBundleCopyResourceURLInDirectory);
     OPHookFunction(CFBundleCopyResourceURL);
