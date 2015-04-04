@@ -124,7 +124,7 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
         GetSidebarVariantType = OPFindSymbol("__Z21GetSidebarVariantTypejPK10__CFStringS1_y");
     }
     uint32_t destMagic = ABBindingGetMagic(destination) & 0xfff;
-
+    
     // Here are the magic values. For some reason I am only ever able to consistently get the last three bytes of it
     // so we are just checking against those
     // 0x12e560: File Info
@@ -136,7 +136,7 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
     // 0x12e830: Variant
     // 0x1298a0: SideFault
     // 0x12e8e0: Composite
-
+    
     if (destMagic == 0x6d0) {
         ABLogBinding(destination);
         ABLog("Custom Binding at %@", url);
@@ -156,7 +156,7 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
         !custom) {
         //!TODO: if this is a CompositeBinding then we want to set the background IconRef
         //!rather than replacing it
-
+        
         // ABBindingCopyUTI doesnt follow the create rule despite its name
         NSString *uti = (__bridge NSString *)(ABBindingCopyUTI(destination));
         if (uti && UTTypeIsDynamic((__bridge CFStringRef)(uti)))
@@ -178,7 +178,7 @@ static void *ABPairBindingsWithURL(void *destination, void *custom, NSURL *url) 
         
         if (!custom) {
             OSType ostype = ABBindingGetType(destination);
-
+            
             // Getting an OS Type off of the path for dirs breaks
             // so use the folder OS Type if this is an unidentifiable directory
             if ((ostype == 0 || ostype == '????') && url && !uti) {
@@ -297,7 +297,7 @@ static BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStrin
             return YES;
         }
     }
-
+    
     if (resourceType != NULL) {
         // we know exactly what file we are looking for
         finalURL = [finalURL URLByAppendingPathComponent:(__bridge NSString *)(resource)];
@@ -352,7 +352,7 @@ static NSURL *replacementURLForURL(NSURL *url) {
     NSBundle *bndl = nil;
     testURL = [url URLByDeletingLastPathComponent];
     NSUInteger cnt = 0;
-
+    
     //!TODO: Check instead for last occurrance of Contents/Resources
     while (![testURL.path isEqualToString:@"/.."] && !foundBundle && cnt++ <= 10) {
         bndl = [NSBundle bundleWithURL:testURL];
@@ -360,12 +360,12 @@ static NSURL *replacementURLForURL(NSURL *url) {
             foundBundle = YES;
             break;
         }
-
+        
         testURL = [testURL URLByDeletingLastPathComponent];
     }
-
+    
     NSArray *pathComponents = url.pathComponents;
-
+    
     if (foundBundle && hasBundle(bndl) && [pathComponents containsObject:@"Resources"]) {
         NSUInteger rsrcIdx = [pathComponents indexOfObject:@"Resources"];
         testURL = urlForBundle(bndl);
@@ -494,15 +494,15 @@ static NSURL *customIconForExtension(NSString *extension) {
 #pragma mark LaunchServices Icon Bindings
 static void *(*CreateWithFileInfo)(FSRef const *ref, unsigned long arg1, unsigned short const *arg2, unsigned int arg3, FSCatalogInfo const *arg4, bool arg5);
 OPHook6(void *, CreateWithFileInfo, FSRef const *, ref, UniCharCount, fileNameLength, const UniChar *, fileName, FSCatalogInfoBitmap, inWhichInfo, FSCatalogInfo const *, outInfo, BOOL, arg5) {
-
+    
     NSURL *targetURL = (__bridge_transfer NSURL *)CFURLCreateFromFSRef(NULL, ref);
     void *customBinding = NULL;
-
+    
     NSURL *customURL = customIconForURL(targetURL);
     if (customURL) {
         customBinding = CreateWithResourceURL((__bridge CFURLRef)customURL, arg5);
     }
-
+    
     return ABPairBindingsWithURL(OPOldCall(ref, fileNameLength, fileName, inWhichInfo, outInfo, arg5), customBinding, targetURL);
 }
 
@@ -539,7 +539,7 @@ OPHook2(void *, CreateWithBookmarkData, CFDataRef, bookmarkData, BOOL, arg1) {
                                     bookmarkDataIsStale:&stale
                                                   error:&error];
     if (!error && !stale) {
-//        ABLog("Create with bookmark data: %@", resolved);
+        //        ABLog("Create with bookmark data: %@", resolved);
         NSURL *customURL = customIconForURL(resolved);
         if (customURL) {
             customBinding = CreateWithResourceURL((__bridge CFURLRef)customURL, arg1);
@@ -563,7 +563,7 @@ OPHook2(void *, CreateWithAliasData, CFDataRef, aliasData, BOOL, arg1) {
                                                   error:&error];
     void *customBinding = NULL;
     if (!error && !stale) {
-//        ABLog("Create with alias data: %@", resolved);
+        //        ABLog("Create with alias data: %@", resolved);
         NSURL *customURL = customIconForURL(resolved);
         if (customURL) {
             customBinding = CreateWithResourceURL((__bridge CFURLRef)customURL, arg1);
@@ -588,7 +588,7 @@ OPHook4(void *, CreateWithTypeInfo, OSType, creator, OSType, iconType, CFStringR
     
     if (customBinding == NULL) {
         NSString *code = ABStringFromOSType(iconType);
-
+        
         NSURL *custom = customIconForOSType(code);
         if (custom) {
             customBinding = CreateWithResourceURL((__bridge CFURLRef)custom, arg3);
@@ -747,7 +747,7 @@ OPInitialize {
         return;
     }
     
-//    OPHookFunction(__UTTypeCopyIconFileName);
+    //    OPHookFunction(__UTTypeCopyIconFileName);
     OPHookFunction(CGImageSourceCreateWithURL);
     OPHookFunction(CGDataProviderCreateWithFilename);
     OPHookFunction(CGDataProviderCreateWithURL);
