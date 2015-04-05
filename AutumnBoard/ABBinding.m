@@ -61,6 +61,8 @@ static struct _ABBindingOffsets {
 
 static struct _ABBindingMethods {
     // Generic
+    ABBindingRef (*RetainBinding)(ABBindingRef binding);
+    void (*ReleaseBinding)(ABBindingRef binding);
     void (*overrideBinding)(void *destination, void *custom);
     
     // File Info
@@ -73,8 +75,8 @@ static struct _ABBindingMethods {
 OPInitialize {
     void *image = OPGetImageByName("/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices");
     
-    ReleaseBinding = OPFindSymbol(image, "__ZN14BindingManager7ReleaseEP7Bindingb");
-    RetainBinding  = OPFindSymbol(image, "__ZN14BindingManager6RetainEP7Bindingb");
+    ABBindingMethods.ReleaseBinding = OPFindSymbol(image, "__ZN14BindingManager7ReleaseEP7Bindingb");
+    ABBindingMethods.RetainBinding  = OPFindSymbol(image, "__ZN14BindingManager6RetainEP7Bindingb");
 
     /**
      This block here gets the offsets relative to the vtable of certain instance methods
@@ -94,9 +96,12 @@ OPInitialize {
     // Lookup offsets to get the instance methods for each binding class
     // and assign the relative one to our struct
     void **bindingVtable = OPFindSymbol(NULL, "__ZTV15FileInfoBinding");
-    for (int x = 2; bindingVtable[x] != 0x0 && bindingVtable[x+1] != 0x0; x++) {
+    
+    // vtables begin starting with two zeroes so stop when we find those
+    // or if thats not the case we can reasonably limit to searching 64 entries
+    for (int x = 2; bindingVtable[x] != 0x0 && bindingVtable[x+1] != 0x0 && x < 64; x++) {
         void *ptr = bindingVtable[x];
-        UInt64 offset = (x - 2) * 0x8;
+        UInt64 offset = (x - 2) * sizeof(void *);
         if (ptr == copyUTI && ABBindingOffsets.copyUTI == 0)
             ABBindingOffsets.copyUTI         = offset;
         else if (ptr == getType && ABBindingOffsets.getOSType == 0)
