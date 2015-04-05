@@ -49,6 +49,13 @@ static ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding);
 static ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding);
 static ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding);
 
+static void *(*RetainBinding)(ABBindingRef binding, BOOL arg1);
+static void *(*ReleaseBinding)(ABBindingRef binding, BOOL arg1);
+OPInitialize {
+    ReleaseBinding = OPFindSymbol(NULL, "__ZN14BindingManager7ReleaseEP7Bindingb");
+    RetainBinding = OPFindSymbol(NULL, "__ZN14BindingManager6RetainEP7Bindingb");
+}
+
 // OSType, EXT, UTI, FLAGS
 static uint32_t (*GetSidebarVariantType)(OSType type, CFStringRef extension, CFStringRef uti, UInt64 flags);
 void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
@@ -60,10 +67,6 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
     // source of icons (they are covered in the nameOfIconFile and customIconForURL)
     // if their icons don't exist
     ABBindingClass class = ABBindingGetBindingClass(destination);
-    
-    if (class == ABBindingClassComposite) {
-        
-    }
     
     BOOL sidebar = ABBindingIsSidebarVariant(destination);
     NSURL *customURL = customIconForURL(url);
@@ -140,16 +143,20 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
     
     if (customURL && class != ABBindingClassComposite) {
         ABBindingRef custom = CreateWithResourceURL((__bridge CFURLRef)customURL, YES);
-        
-        // If we override the binding, these binding classes would not ever
-        // return to this method with updated OSTypes
-        if (class == ABBindingClassFileInfo ||
-            class == ABBindingClassUTI ||
-            class == ABBindingClassVolume) {
-            ABBindingSetIconRef(destination, ABBindingGetIconRef(custom));
-        } else {
-            ABBindingOverride(destination, custom);
+        if (custom) {
+            // Since these types call back for sidebar implementations we need to make
+            // hax by preserving their type and re-registering their icon
+            if (class == ABBindingClassFileInfo ||
+                class == ABBindingClassUTI ||
+                class == ABBindingClassVolume) {
+                ABBindingSetIconRef(destination, ABBindingGetIconRef(custom));
+            } else {
+                ABBindingOverride(destination, custom);
+            }
         }
+    } else if (class == ABBindingClassComposite) {
+        ABPairBindingsWithURL(ABCompositeBindingGetForegroundBinding(destination), NULL);
+        ABPairBindingsWithURL(ABCompositeBindingGetBackgroundBinding(destination), NULL);
     }
     
     return destination;
@@ -194,8 +201,9 @@ static IconRef ABBindingGetIconRef(ABBindingRef binding) {
 }
 
 static void ABBindingSetIconRef(ABBindingRef binding, IconRef icon) {
-    if (binding && IsValidIconRef(icon))
+    if (binding && IsValidIconRef(icon)) {
         *(IconRef *)((uint8_t *)binding + 0x8) = icon;
+    }
 }
 
 static ABBindingClass ABBindingGetBindingClass(ABBindingRef binding) {
