@@ -11,6 +11,5 @@
 
 #import <CoreFoundation/CoreFoundation.h>
 void *(*CreateWithResourceURL)(CFURLRef url, BOOL arg1);
-static void *(*CreateWithURL)(CFURLRef url, BOOL arg1);
 
 #endif /* defined(__AutumnBoard__ABBindingManager__) */

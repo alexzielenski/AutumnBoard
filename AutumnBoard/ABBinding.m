@@ -25,7 +25,6 @@ typedef NS_ENUM(NSUInteger, ABBindingClass) {
     ABBindingClassSideFault = 11
 };
 
-static UInt32 ABBindingGetMagic(ABBindingRef binding);
 static CFStringRef ABBindingCopyUTI(ABBindingRef arg0);
 
 static ABBindingClass ABBindingGetBindingClass(ABBindingRef binding);
@@ -52,9 +51,61 @@ static ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding)
 
 static void *(*RetainBinding)(ABBindingRef binding, BOOL arg1);
 static void *(*ReleaseBinding)(ABBindingRef binding, BOOL arg1);
+
+static struct _ABBindingOffsets {
+    UInt64 getBindingClass;
+    UInt64 getOSType;
+    UInt64 copyUTI;
+    UInt64 copyDebugDesc;
+} ABBindingOffsets;
+
+static struct _ABBindingMethods {
+    // Generic
+    void (*overrideBinding)(void *destination, void *custom);
+    
+    // File Info
+    UInt64 (*getFlags)(void *binding);
+    
+    // Link
+    OSErr (*resolveBinding)(void *binding);
+} ABBindingMethods;
+
 OPInitialize {
-    ReleaseBinding = OPFindSymbol(NULL, "__ZN14BindingManager7ReleaseEP7Bindingb");
-    RetainBinding = OPFindSymbol(NULL, "__ZN14BindingManager6RetainEP7Bindingb");
+    void *image = OPGetImageByName("/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices");
+    
+    ReleaseBinding = OPFindSymbol(image, "__ZN14BindingManager7ReleaseEP7Bindingb");
+    RetainBinding  = OPFindSymbol(image, "__ZN14BindingManager6RetainEP7Bindingb");
+
+    /**
+     This block here gets the offsets relative to the vtable of certain instance methods
+     for the Binding C++ subclasses at runtime so we don't have to hardcode the offsets.
+     */
+    // Get absolute offsets to instance methods
+    void *copyUTI         = OPFindSymbol(image, "__ZNK15FileInfoBinding7copyUTIEv");
+    void *getType         = OPFindSymbol(image, "__ZNK15FileInfoBinding7getTypeEv");
+    void *getBindingClass = OPFindSymbol(image, "__ZNK15FileInfoBinding15getBindingClassEv");
+    void *copyDebugDesc   = OPFindSymbol(image, "__ZNK15FileInfoBinding13copyDebugDescEv");
+    
+    // Class-specific
+    ABBindingMethods.overrideBinding = OPFindSymbol(image, "__ZN7Binding19overrideWithBindingEPS_");
+    ABBindingMethods.getFlags        = OPFindSymbol(image, "__ZNK15FileInfoBinding8getFlagsEv");
+    ABBindingMethods.resolveBinding  = OPFindSymbol(image, "__ZN11LinkBinding14resolveBindingEv");
+
+    // Lookup offsets to get the instance methods for each binding class
+    // and assign the relative one to our struct
+    void **bindingVtable = OPFindSymbol(NULL, "__ZTV15FileInfoBinding");
+    for (int x = 2; bindingVtable[x] != 0x0 && bindingVtable[x+1] != 0x0; x++) {
+        void *ptr = bindingVtable[x];
+        UInt64 offset = (x - 2) * 0x8;
+        if (ptr == copyUTI && ABBindingOffsets.copyUTI == 0)
+            ABBindingOffsets.copyUTI         = offset;
+        else if (ptr == getType && ABBindingOffsets.getOSType == 0)
+            ABBindingOffsets.getOSType       = offset;
+        else if (ptr == getBindingClass && ABBindingOffsets.getBindingClass == 0)
+            ABBindingOffsets.getBindingClass = offset;
+        else if (ptr == copyDebugDesc && ABBindingOffsets.copyDebugDesc == 0)
+            ABBindingOffsets.copyDebugDesc = offset;
+    }
 }
 
 // OSType, EXT, UTI, FLAGS
@@ -192,22 +243,12 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
     return binding;
 }
 
-#pragma mark - ABBinding
-// Probably useless now that i found ABBindingGetBindingClass
-static UInt32 ABBindingGetMagic(ABBindingRef binding) {
-    if (!binding)
-        return 0;
-    
-    return *((UInt32 *)binding);
+#pragma mark - ABBinding Methods
+
+static void ABBindingOverride(ABBindingRef destination, ABBindingRef custom) {
+    ABBindingMethods.overrideBinding(destination, custom);
 }
 
-// Gets UTI associated with a binding
-// + 0x80 is UTI function
-// + 0x48 is OS Type
-// + 0x40 on Bundle binding is the URL
-//!TODO: See if it is instead better to get the symbol for each of the
-//! copyUTI methods for every binding class and then use a switch statement
-//! deciding which one to call
 static CFStringRef ABBindingCopyUTI(ABBindingRef arg0) {
     if (!arg0)
         return NULL;
@@ -216,7 +257,7 @@ static CFStringRef ABBindingCopyUTI(ABBindingRef arg0) {
     
     // big hax to call C++ instance method from C
     CFStringRef (*copyUTI)(ABBindingRef binding);
-    copyUTI = *(void **)((uint8_t *)deref + 0x80);
+    copyUTI = *(void **)((uint8_t *)deref + ABBindingOffsets.copyUTI);
     return copyUTI(arg0);
 }
 
@@ -227,9 +268,21 @@ static UInt32 ABBindingGetOSType(ABBindingRef binding) {
     void *deref = *(void **)binding;
     
     UInt32 (*getType)(ABBindingRef binding);
-    getType = *(void **)((uint8_t *)deref + 0x70);
+    getType = *(void **)((uint8_t *)deref + ABBindingOffsets.getOSType);
     return getType(binding);
 }
+
+static ABBindingClass ABBindingGetBindingClass(ABBindingRef binding) {
+    if (!binding)
+        return 0x0;
+    
+    ABBindingClass (*getClass)(ABBindingRef binding);
+    // HEY GUYS LOOK AT ALL THESE CASTS!
+    getClass = *(void **)((uint8_t *)(*(void **)binding) + ABBindingOffsets.getBindingClass);
+    return getClass(binding);
+}
+
+#pragma mark - ABBinding Variables
 
 static IconRef ABBindingGetIconRef(ABBindingRef binding) {
     if (!binding)
@@ -247,16 +300,6 @@ static void ABBindingSetIconRef(ABBindingRef binding, IconRef icon) {
     }
 }
 
-static ABBindingClass ABBindingGetBindingClass(ABBindingRef binding) {
-    if (!binding)
-        return 0x0;
-    
-    ABBindingClass (*getClass)(ABBindingRef binding);
-    // HEY GUYS LOOK AT ALL THESE CASTS!
-    getClass = *(void **)((uint8_t *)(*(void **)binding) + 0x60);
-    return getClass(binding);
-}
-
 static bool ABBindingIsSidebarVariant(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassVariant) {
         UInt32 flags = *(OSType *)((uint8_t *)binding + 0x48);
@@ -264,24 +307,6 @@ static bool ABBindingIsSidebarVariant(ABBindingRef binding) {
     }
     
     return false;
-}
-
-static void ABBindingOverride(ABBindingRef destination, ABBindingRef custom) {
-    // This is the actual stuff that replaces the icons
-    // dont listen to what other people tell you, this IS the magic
-    // wtf how does this shit work? you may ask
-    // I'll tell you
-    
-    // 1: Dereference the pointer to the binding so we can interact
-    //    with the object itself.
-    void *def = *(void **)destination;
-    // 2: Create a variable to store the address to the override method
-    void (*overrideBinding)(void *dest, void *src);
-    // 3: Get and dereference the address to the override binding function on
-    //    this C++ instance method
-    overrideBinding = *(void **)((uint8_t *)def + 0x68);
-    // 4: Invoke it
-    overrideBinding(destination, custom);
 }
 
 static CFURLRef ABBindingGetURL(ABBindingRef binding) {
@@ -293,15 +318,9 @@ static CFURLRef ABBindingGetURL(ABBindingRef binding) {
 
 static ABBindingRef ABLinkBindingResolve(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassLink) {
-        static ABBindingRef (*resolveBinding)(ABBindingRef binding) = NULL;
-        if (!resolveBinding) {
-            resolveBinding = OPFindSymbol(NULL, "__ZN11LinkBinding14resolveBindingEv");
-        }
-        if (resolveBinding) {
-            // resolveBinding puts the resolved binding into LinkBinding + 0x60
-            resolveBinding(binding);
-            return *(ABBindingRef *)((uint8_t *)binding + 0x60);
-        }
+        // resolveBinding puts the resolved binding into LinkBinding + 0x60
+        ABBindingMethods.resolveBinding(binding);
+        return *(ABBindingRef *)((uint8_t *)binding + 0x60);
     }
     return NULL;
 }
@@ -334,7 +353,7 @@ static CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding) {
 
 static UInt64 ABFileInfoBindingInfoGetFlags(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassFileInfo) {
-        return *(UInt64 *)((uint8_t *)binding + 0x50);
+        return ABBindingMethods.getFlags(binding);
     }
     return 0;
 }
@@ -364,10 +383,13 @@ static CFStringRef ABVolumeBindingGetBundleIconResourceName(ABBindingRef binding
 }
 
 static NSString *ABBindingCopyDescription(ABBindingRef binding) {
+    if (!binding)
+        return nil;
+    
     void *deref = *(void **)binding;
     
     CFStringRef (*getDesc)(ABBindingRef binding);
-    getDesc = *(void **)((uint8_t *)deref + 0x48);
+    getDesc = *(void **)((uint8_t *)deref + ABBindingOffsets.copyDebugDesc);
     return (__bridge_transfer NSString *)getDesc(binding);
 }
 
