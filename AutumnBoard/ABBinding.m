@@ -72,10 +72,18 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
     BOOL sidebar = ABBindingIsSidebarVariant(destination);
     NSURL *customURL = customIconForURL(url);
     
+    // try first to get an icon for the bundle
+    // the iconForBundle function handles the case where
+    // the bundle has no specified icon file and therefore fills
+    // it in with the appropriate icon for its ostype
     if (class == ABBindingClassBundle && !customURL) {
         NSURL *bundleURL = (__bridge NSURL *)(ABBindingGetURL(destination));
         if (bundleURL.isFileURL)
             customURL = iconForBundle([NSBundle bundleWithURL:bundleURL]);
+        
+    // VolumeBindings store the identifier for the bundle that the image name will be found in
+    // so to support theming of default volume icons we can cheat by taking those and calling our
+    // hook of CFBundleCopyResourceURL
     } else if (class == ABBindingClassVolume && !customURL) {
         NSString *identifier = (__bridge NSString *)(ABVolumeBindingGetBundleIdentifier(destination));
         NSString *imageName = (__bridge NSString *)(ABVolumeBindingGetBundleIconResourceName(destination));
@@ -85,10 +93,16 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
         }
     }
     
+    // Get the icon ref for the binding that this alias resolves to
+    // because the OSType for a link is always 'alis'
     if (class == ABBindingClassLink) {
         destination = ABLinkBindingResolve(destination);
     }
     
+    // Dont fuck with custom icons
+    // Dont fuck with bundles
+    // I don't know what a SideFault file is – maybe an iCloud document?
+    // Composites are handled recursively at the bottom of this method
     if (class != ABBindingClassBundle &&
         class != ABBindingClassSideFault &&
         class != ABBindingClassCustom &&
@@ -97,9 +111,11 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
         
         // ABBindingCopyUTI doesnt follow the create rule despite its name
         NSString *uti = (__bridge NSString *)(ABBindingCopyUTI(destination));
+        // A dynamic UTI is no UTI at all (dynamic utis are generated based on the extension/ostype)
         if (uti && UTTypeIsDynamic((__bridge CFStringRef)(uti)))
             uti = nil;
         
+        // see if we theme this UTI or any of its associated extensions/ostypes
         customURL = customIconForUTI(uti);
         
         if (url && !customURL) {
@@ -123,19 +139,27 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
             if ((ostype == 0 || ostype == '????') && url && !uti &&
                 class != ABBindingClassBundle &&
                 class != ABBindingClassVolume) {
+                
                 // Dont apply the generic folder icon to packages
                 // See if its a dir with a weird extension
+                // (folders like MYFOLDER.3 should get the generic icon but the 3 throws
+                // the OSType generator off so we have to hardcode it)
                 LSItemInfoRecord info;
                 NSURL *resolved = [NSURL URLByResolvingAliasFileAtURL:url
                                                               options:NSURLBookmarkResolutionWithoutUI | NSURLBookmarkResolutionWithoutMounting
                                                                 error:nil];
                 LSCopyItemInfoForURL((__bridge CFURLRef)resolved, kLSRequestBasicFlagsOnly, &info);
+                
+                // Packages get the little lego cube
                 if (info.flags & kLSItemInfoIsPackage)
                     ostype = kGenericExtensionIcon;
+                // Folders get the generic folder
                 else if (info.flags & kLSItemInfoIsContainer)
                     ostype = kGenericFolderIcon;
+                // Executables get the executable icon
                 else if (ABFileInfoBindingInfoGetFlags(destination) == 1) // executable
                     ostype = 'xTol';
+                // Otherwise try to use the LaunchServices ostype (which is likely still '????')
                 else
                     ostype = info.filetype;
             }
@@ -160,6 +184,7 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
             }
         }
     } else if (class == ABBindingClassComposite) {
+        // recursively apply icons as appropriate to each of the composite's parts
         ABPairBindingsWithURL(ABCompositeBindingGetForegroundBinding(binding), NULL);
         ABPairBindingsWithURL(ABCompositeBindingGetBackgroundBinding(binding), NULL);
     }
@@ -168,6 +193,7 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
 }
 
 #pragma mark - ABBinding
+// Probably useless now that i found ABBindingGetBindingClass
 static UInt32 ABBindingGetMagic(ABBindingRef binding) {
     if (!binding)
         return 0;
@@ -179,6 +205,9 @@ static UInt32 ABBindingGetMagic(ABBindingRef binding) {
 // + 0x80 is UTI function
 // + 0x48 is OS Type
 // + 0x40 on Bundle binding is the URL
+//!TODO: See if it is instead better to get the symbol for each of the
+//! copyUTI methods for every binding class and then use a switch statement
+//! deciding which one to call
 static CFStringRef ABBindingCopyUTI(ABBindingRef arg0) {
     if (!arg0)
         return NULL;
@@ -264,15 +293,22 @@ static CFURLRef ABBindingGetURL(ABBindingRef binding) {
 
 static ABBindingRef ABLinkBindingResolve(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassLink) {
-        static ABBindingRef (*resolveBinding)(ABBindingRef binding) = NULL;// *(void **)((uint8_t *)*(void **)binding + 0x88);
+        static ABBindingRef (*resolveBinding)(ABBindingRef binding) = NULL;
         if (!resolveBinding) {
             resolveBinding = OPFindSymbol(NULL, "__ZN11LinkBinding14resolveBindingEv");
         }
         if (resolveBinding) {
+            // resolveBinding puts the resolved binding into LinkBinding + 0x60
             resolveBinding(binding);
             return *(ABBindingRef *)((uint8_t *)binding + 0x60);
         }
     }
+    return NULL;
+}
+
+static CFURLRef ABLinkBindingGetURL(ABBindingRef binding) {
+    if (ABBindingGetBindingClass(binding) == ABBindingClassLink)
+        return *(CFURLRef *)((uint8_t *)binding + 0x58);
     return NULL;
 }
 
@@ -301,12 +337,6 @@ static UInt64 ABFileInfoBindingInfoGetFlags(ABBindingRef binding) {
         return *(UInt64 *)((uint8_t *)binding + 0x50);
     }
     return 0;
-}
-
-static CFURLRef ABLinkBindingGetURL(ABBindingRef binding) {
-    if (ABBindingGetBindingClass(binding) == ABBindingClassLink)
-        return *(CFURLRef *)((uint8_t *)binding + 0x58);
-    return NULL;
 }
 
 static CFURLRef ABBundleBindingGetURL(ABBindingRef binding) {

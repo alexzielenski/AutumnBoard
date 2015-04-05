@@ -18,6 +18,11 @@
 ZKSwizzleInterface($_ZABImage, NSSidebarImage, NSImage)
 @implementation $_ZABImage
 
+/* Disable Finder Sidebar's Masking of the images. Probably don't want to do this since SideBar images are gray anyway
+ but we want any images we replace to be unmasked 
+ 
+ !TODO: Make this a preference
+ */
 - (void)_drawMappingAlignmentRectToRect:(struct CGRect)arg1 withState:(unsigned long long)arg2 backgroundStyle:(int)arg3 operation:(unsigned long long)arg4 fraction:(double)arg5 flip:(BOOL)arg6 hints:(id)arg7 {
     [super _drawMappingAlignmentRectToRect:arg1
                                  withState:0x0

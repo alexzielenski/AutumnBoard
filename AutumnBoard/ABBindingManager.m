@@ -23,6 +23,8 @@ static void *(*CreateWithFolder)(SInt16 vRefNum, SInt32 parentFolderID, SInt32 f
 static void *(*CreateWithDeviceID)(const char *device, BOOL arg1);
 static void *(*CreateVariant)(void *binding, unsigned long long, unsigned long long, BOOL);
 
+#pragma mark - Hooks
+
 OPHook6(void *, CreateWithFileInfo, FSRef const *, ref, UniCharCount, fileNameLength, const UniChar *, fileName, FSCatalogInfoBitmap, inWhichInfo, FSCatalogInfo const *, outInfo, BOOL, arg5) {
     
     NSURL *targetURL = (__bridge_transfer NSURL *)CFURLCreateFromFSRef(NULL, ref);
@@ -37,6 +39,7 @@ OPHook2(void *, CreateWithUTI, CFStringRef, uti, BOOL, arg1) {
     return ABPairBindingsWithURL(OPOldCall(uti, arg1), NULL);
 }
 
+// I don't really know what the difference between BookmarkData and aliasData is but who cares
 OPHook2(void *, CreateWithBookmarkData, CFDataRef, bookmarkData, BOOL, arg1) {
     BOOL stale = NO;
     NSError *error = nil;
@@ -45,7 +48,9 @@ OPHook2(void *, CreateWithBookmarkData, CFDataRef, bookmarkData, BOOL, arg1) {
                                           relativeToURL:nil
                                     bookmarkDataIsStale:&stale
                                                   error:&error];
-
+    if (error || stale) {
+        resolved = nil;
+    }
     
     return ABPairBindingsWithURL(OPOldCall(bookmarkData, arg1), resolved);
 }
@@ -68,25 +73,8 @@ OPHook2(void *, CreateWithAliasData, CFDataRef, aliasData, BOOL, arg1) {
     return ABPairBindingsWithURL(OPOldCall(aliasData, arg1), resolved);
 }
 
+// Asks for an icon given type information such as ostype and extension
 OPHook4(void *, CreateWithTypeInfo, OSType, creator, OSType, iconType, CFStringRef, extension, BOOL, arg3) {
-    
-//    void *customBinding = NULL;
-//    if (extension != NULL) {
-//        NSURL *targetURL = customIconForExtension((__bridge NSString *)(extension));
-//        if (targetURL) {
-//            customBinding = CreateWithResourceURL((__bridge CFURLRef)targetURL, arg3);
-//        }
-//    }
-//    
-//    if (customBinding == NULL) {
-//        NSString *code = ABStringFromOSType(iconType);
-//        
-//        NSURL *custom = customIconForOSType(code);
-//        if (custom) {
-//            customBinding = CreateWithResourceURL((__bridge CFURLRef)custom, arg3);
-//        }
-//    }
-//    
     return ABPairBindingsWithURL(OPOldCall(creator, iconType, extension, arg3), NULL);
 }
 
@@ -104,6 +92,7 @@ OPHook4(void *, CreateVariant, void *, binding, unsigned long long, arg1, unsign
 }
 
 OPInitialize {
+    // Don't fuck with Quicklook
     if (ABIsInQuicklook())
         return;
     

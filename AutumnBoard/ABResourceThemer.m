@@ -38,7 +38,6 @@ static NSURL *URLForBundle(NSBundle *bundle) {
     return [[ThemePath URLByAppendingPathComponent:@"Bundles"] URLByAppendingPathComponent:identifier];
 }
 
-
 NSURL *URLForOSType(NSString *type) {
     return [[[ThemePath URLByAppendingPathComponent:@"OSTypes"] URLByAppendingPathComponent:type] URLByAppendingPathExtension:@"icns"];
 }
@@ -150,6 +149,8 @@ BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStringRef re
     return YES;
 }
 
+#pragma mark - Absolute Path Helpers
+
 NSURL *replacementURLForURL(NSURL *url) {
     if (!url || !url.isFileURL)
         return nil;
@@ -166,7 +167,6 @@ NSURL *replacementURLForURL(NSURL *url) {
     testURL = [url URLByDeletingLastPathComponent];
     NSUInteger cnt = 0;
     
-    //!TODO: Check instead for last occurrance of Contents/Resources
     while (![testURL.path isEqualToString:@"/.."] && !foundBundle && cnt++ <= 10) {
         bndl = [NSBundle bundleWithURL:testURL];
         if (bndl.bundleIdentifier) {
@@ -178,6 +178,8 @@ NSURL *replacementURLForURL(NSURL *url) {
     }
     
     NSArray *pathComponents = url.pathComponents;
+    //!TODO: Check instead for last occurrance of Contents/Resources
+    //! or look at LaunchServices flags and see if this is a package (probably better)
     if (foundBundle && [pathComponents containsObject:@"Resources"]) {
         NSUInteger rsrcIdx = [pathComponents indexOfObject:@"Resources"];
         testURL = URLForBundle(bndl);
