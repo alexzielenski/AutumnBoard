@@ -14,8 +14,9 @@
 - (void)_drawMappingAlignmentRectToRect:(struct CGRect)arg1 withState:(unsigned long long)arg2 backgroundStyle:(int)arg3 operation:(unsigned long long)arg4 fraction:(double)arg5 flip:(BOOL)arg6 hints:(id)arg7;
 @end
 
-ZKSwizzleInterface(ABImage, NSSidebarImage, NSImage)
-@implementation ABImage
+// NAMESPACING!
+ZKSwizzleInterface($_ZABImage, NSSidebarImage, NSImage)
+@implementation $_ZABImage
 
 - (void)_drawMappingAlignmentRectToRect:(struct CGRect)arg1 withState:(unsigned long long)arg2 backgroundStyle:(int)arg3 operation:(unsigned long long)arg4 fraction:(double)arg5 flip:(BOOL)arg6 hints:(id)arg7 {
     [super _drawMappingAlignmentRectToRect:arg1
