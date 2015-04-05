@@ -71,6 +71,15 @@ OPHook2(CGImageSourceRef, CGImageSourceCreateWithURL, CFURLRef, url, CFDictionar
     return OPOldCall(url, options);
 }
 
+void (*CGImageReadCreateWithURL)(CFURLRef arg0, int arg1, int arg2);
+OPHook3(void *, CGImageReadCreateWithURL, CFURLRef, url, int, arg1, int, arg2) {
+    NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
+    if (replacement)
+        url = (__bridge CFURLRef)replacement;
+    
+    return OPOldCall(url, arg1, arg2);
+}
+
 OPInitialize {
     OPHookFunction(CFBundleCopyResourceURLInDirectory);
     OPHookFunction(CFBundleCopyResourceURL);
@@ -84,8 +93,8 @@ OPInitialize {
         return;
     }
 
-    
-    //    OPHookFunction(__UTTypeCopyIconFileName);
+    CGImageReadCreateWithURL = OPFindSymbol(NULL, "_CGImageReadCreateWithURL");
+    OPHookFunction(CGImageReadCreateWithURL);
     OPHookFunction(CGImageSourceCreateWithURL);
     OPHookFunction(CGDataProviderCreateWithFilename);
     OPHookFunction(CGDataProviderCreateWithURL);
