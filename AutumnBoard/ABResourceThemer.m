@@ -196,11 +196,11 @@ NSURL *replacementURLForURL(NSURL *url) {
 NSURL *customIconForURL(NSURL *url) {
     if (!url)
         return nil;
-    
+
     // Step 1, check if our theme structure has a custom icon for this hardcoded
     NSFileManager *manager = [NSFileManager defaultManager];
     BOOL isDir = NO;
-    NSURL *testURL = [[ThemePath URLByAppendingPathComponent:url.path] URLByAppendingPathExtension:@"icns"];
+    NSURL *testURL = [[ThemePath URLByAppendingPathComponent:[url.path stringByAbbreviatingWithTildeInPath]] URLByAppendingPathExtension:@"icns"];
     if ([manager fileExistsAtPath:testURL.path isDirectory:&isDir] && !isDir) {
         return testURL;
     }
