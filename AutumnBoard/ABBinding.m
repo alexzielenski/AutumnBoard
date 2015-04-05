@@ -248,7 +248,7 @@ static ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding)
 
 static ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassComposite) {
-        return *(ABBindingRef *)((uint8_t *)binding + 0x49);
+        return *(ABBindingRef *)((uint8_t *)binding + 0x48);
     }
     return NULL;
 }
