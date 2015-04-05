@@ -32,7 +32,7 @@ static ABBindingClass ABBindingGetBindingClass(ABBindingRef binding);
 static bool ABBindingIsSidebarVariant(ABBindingRef binding);
 static void ABBindingOverride(ABBindingRef destination, ABBindingRef custom);
 
-static CFStringRef ABBindingGetDescription(ABBindingRef binding);
+static NSString *ABBindingCopyDescription(ABBindingRef binding);
 static CFURLRef ABBindingGetURL(ABBindingRef binding);
 static UInt32 ABBindingGetOSType(ABBindingRef binding);
 static IconRef ABBindingGetIconRef(ABBindingRef binding);
@@ -45,6 +45,7 @@ static UInt64 ABFileInfoBindingInfoGetFlags(ABBindingRef binding);
 static CFStringRef ABVolumeBindingGetBundleIdentifier(ABBindingRef binding);
 static CFStringRef ABVolumeBindingGetBundleIconResourceName(ABBindingRef binding);
 
+static ABBindingRef ABLinkBindingResolve(ABBindingRef binding);
 static ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding);
 static ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding);
 static ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding);
@@ -58,16 +59,16 @@ OPInitialize {
 
 // OSType, EXT, UTI, FLAGS
 static uint32_t (*GetSidebarVariantType)(OSType type, CFStringRef extension, CFStringRef uti, UInt64 flags);
-void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
+void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
     if (GetSidebarVariantType == NULL) {
         GetSidebarVariantType = OPFindSymbol(NULL, "__Z21GetSidebarVariantTypejPK10__CFStringS1_y");
     }
+    void *destination = binding;
     
     // We don't want to do this for the bundle binding because they have a different
     // source of icons (they are covered in the nameOfIconFile and customIconForURL)
     // if their icons don't exist
     ABBindingClass class = ABBindingGetBindingClass(destination);
-    
     BOOL sidebar = ABBindingIsSidebarVariant(destination);
     NSURL *customURL = customIconForURL(url);
     
@@ -82,6 +83,10 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
             NSBundle *bndl = [NSBundle bundleWithIdentifier:identifier];
             customURL = [bndl URLForResource:imageName.stringByDeletingPathExtension withExtension:imageName.pathExtension];
         }
+    }
+    
+    if (class == ABBindingClassLink) {
+        destination = ABLinkBindingResolve(destination);
     }
     
     if (class != ABBindingClassBundle &&
@@ -149,17 +154,17 @@ void *ABPairBindingsWithURL(ABBindingRef destination, NSURL *url) {
             if (class == ABBindingClassFileInfo ||
                 class == ABBindingClassUTI ||
                 class == ABBindingClassVolume) {
-                ABBindingSetIconRef(destination, ABBindingGetIconRef(custom));
+                ABBindingSetIconRef(binding, ABBindingGetIconRef(custom));
             } else {
-                ABBindingOverride(destination, custom);
+                ABBindingOverride(binding, custom);
             }
         }
     } else if (class == ABBindingClassComposite) {
-        ABPairBindingsWithURL(ABCompositeBindingGetForegroundBinding(destination), NULL);
-        ABPairBindingsWithURL(ABCompositeBindingGetBackgroundBinding(destination), NULL);
+        ABPairBindingsWithURL(ABCompositeBindingGetForegroundBinding(binding), NULL);
+        ABPairBindingsWithURL(ABCompositeBindingGetBackgroundBinding(binding), NULL);
     }
     
-    return destination;
+    return binding;
 }
 
 #pragma mark - ABBinding
@@ -175,6 +180,9 @@ static UInt32 ABBindingGetMagic(ABBindingRef binding) {
 // + 0x48 is OS Type
 // + 0x40 on Bundle binding is the URL
 static CFStringRef ABBindingCopyUTI(ABBindingRef arg0) {
+    if (!arg0)
+        return NULL;
+    
     void *deref = *(void **)arg0;
     
     // big hax to call C++ instance method from C
@@ -184,6 +192,9 @@ static CFStringRef ABBindingCopyUTI(ABBindingRef arg0) {
 }
 
 static UInt32 ABBindingGetOSType(ABBindingRef binding) {
+    if (!binding)
+        return '????';
+    
     void *deref = *(void **)binding;
     
     UInt32 (*getType)(ABBindingRef binding);
@@ -194,6 +205,7 @@ static UInt32 ABBindingGetOSType(ABBindingRef binding) {
 static IconRef ABBindingGetIconRef(ABBindingRef binding) {
     if (!binding)
         return NULL;
+    
     void *iconRef = *(void **)((uint8_t *)binding + 0x8);
     if (IsValidIconRef(iconRef))
         return iconRef;
@@ -207,6 +219,9 @@ static void ABBindingSetIconRef(ABBindingRef binding, IconRef icon) {
 }
 
 static ABBindingClass ABBindingGetBindingClass(ABBindingRef binding) {
+    if (!binding)
+        return 0x0;
+    
     ABBindingClass (*getClass)(ABBindingRef binding);
     // HEY GUYS LOOK AT ALL THESE CASTS!
     getClass = *(void **)((uint8_t *)(*(void **)binding) + 0x60);
@@ -246,6 +261,20 @@ static CFURLRef ABBindingGetURL(ABBindingRef binding) {
 }
 
 #pragma mark - Class-Specific
+
+static ABBindingRef ABLinkBindingResolve(ABBindingRef binding) {
+    if (ABBindingGetBindingClass(binding) == ABBindingClassLink) {
+        static ABBindingRef (*resolveBinding)(ABBindingRef binding) = NULL;// *(void **)((uint8_t *)*(void **)binding + 0x88);
+        if (!resolveBinding) {
+            resolveBinding = OPFindSymbol(NULL, "__ZN11LinkBinding14resolveBindingEv");
+        }
+        if (resolveBinding) {
+            resolveBinding(binding);
+            return *(ABBindingRef *)((uint8_t *)binding + 0x60);
+        }
+    }
+    return NULL;
+}
 
 static ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassComposite) {
