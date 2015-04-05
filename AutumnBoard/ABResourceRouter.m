@@ -17,11 +17,6 @@
 OPHook4(CFURLRef, CFBundleCopyResourceURL, CFBundleRef, bundle, CFStringRef, resourceName, CFStringRef, resourceType, CFStringRef, subDirName) {
     CFURLRef finalURL = NULL;
     
-    if ([((__bridge NSString *)resourceName).pathExtension isEqualToString:@"icns"] ||
-        [((__bridge NSString *)resourceType) isEqualToString:@"icns"]) {
-        ABLog("Bundle: %@, %@, %@", bundle, resourceName, resourceType);
-    }
-    
     // for some reason when I __bridge over cfbundle shit breaks
     NSBundle *nsBundle = [NSBundle bundleWithPath:((__bridge_transfer NSURL *)CFBundleCopyBundleURL(bundle)).path];
     if (!hasResourceForBundle(nsBundle, resourceName, resourceType, subDirName, &finalURL)) {
@@ -40,12 +35,7 @@ OPHook4(CFURLRef, CFBundleCopyResourceURLInDirectory, CFURLRef, bundleURL, CFStr
             finalURL = OPOldCall(bundleURL, resourceName, resourceType, subDirName);
         }
     }
-    
-    if ([((__bridge NSString *)resourceName).pathExtension isEqualToString:@"icns"] ||
-        [((__bridge NSString *)resourceType) isEqualToString:@"icns"]) {
-        ABLog("Directory: %@, %@, %@ (%@)", bundleURL, resourceName, resourceType, finalURL);
-    }
-        
+
     return finalURL;
 }
 
