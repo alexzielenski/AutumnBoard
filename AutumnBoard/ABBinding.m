@@ -296,12 +296,12 @@ static CFStringRef ABVolumeBindingGetBundleIconResourceName(ABBindingRef binding
     return NULL;
 }
 
-static CFStringRef ABBindingGetDescription(ABBindingRef binding) {
+static NSString *ABBindingCopyDescription(ABBindingRef binding) {
     void *deref = *(void **)binding;
     
     CFStringRef (*getDesc)(ABBindingRef binding);
     getDesc = *(void **)((uint8_t *)deref + 0x48);
-    return getDesc(binding);
+    return (__bridge_transfer NSString *)getDesc(binding);
 }
 
 NSString *ABStringFromOSType(OSType type) {
