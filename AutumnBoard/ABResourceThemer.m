@@ -15,6 +15,13 @@ static NSString *nameOfIconForBundle(NSBundle *bundle);
 static NSURL *URLForBundle(NSBundle *bundle);
 static NSURL *URLForOSType(NSString *type);
 static NSURL *URLForUTIFile(NSString *name);
+static NSDictionary *typeIndexForBundle(NSBundle *bundle);
+
+static NSString *const ABTypeIndexUTIsKey = @"utis";
+static NSString *const ABTypeIndexExtensionsKey = @"extenions";
+static NSString *const ABTypeIndexMIMEsKey = @"mimes";
+static NSString *const ABTypeIndexOSTypesKey = @"ostypes";
+static NSString *const ABTypeIndexRoleKey = @"role";
 
 OPInitialize {
     ThemePath = [NSURL fileURLWithPath:@"/Library/AutumnBoard/Themes/Fladder2"];
@@ -47,6 +54,50 @@ NSURL *URLForUTIFile(NSString *name) {
 }
 
 #pragma mark - Bundle Helpers
+//!TODO: see if we should actually set up a daemon for this since it is quite expensive to do for every single application
+static NSDictionary *typeIndexForBundle(NSBundle *bundle) {
+    static NSMutableDictionary *cache = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        cache = [NSMutableDictionary dictionary];
+    });
+    
+    if (!bundle.bundleIdentifier)
+        return nil;
+    
+    NSDictionary *cached = [cache objectForKey:bundle.bundleIdentifier];
+    if (cached)
+        return cached;
+    
+    NSDictionary *info = bundle.infoDictionary;
+    NSMutableDictionary *index = [NSMutableDictionary dictionary];
+    NSDictionary *types = info[@"CFBundleDocumentTypes"];
+    
+    for (NSDictionary *type in types) {
+        NSString *icon = type[@"CFBundleTypeIconFile"];
+        if (!icon)
+            continue;
+        
+        NSMutableDictionary *entry = (NSMutableDictionary *)index[icon];
+        if (!entry) {
+            entry = [NSMutableDictionary dictionary];
+            entry[ABTypeIndexUTIsKey] = [NSMutableArray array];
+            entry[ABTypeIndexExtensionsKey] = [NSMutableArray array];
+            entry[ABTypeIndexMIMEsKey] = [NSMutableArray array];
+            entry[ABTypeIndexOSTypesKey] = [NSMutableArray array];
+            
+            index[icon] = entry;
+        }
+        
+        [(NSMutableArray *)entry[ABTypeIndexUTIsKey] addObjectsFromArray:type[@"LSItemContentTypes"]];
+        [(NSMutableArray *)entry[ABTypeIndexExtensionsKey] addObjectsFromArray:type[@"CFBundleTypeExtensions"]];
+        [(NSMutableArray *)entry[ABTypeIndexMIMEsKey] addObjectsFromArray:type[@"CFBundleTypeMIMETypes"]];
+        [(NSMutableArray *)entry[ABTypeIndexOSTypesKey] addObjectsFromArray:type[@"CFBundleTypeOSTypes"]];
+    }
+    
+    cache[bundle.bundleIdentifier] = index;
+    return index;
+}
 
 static NSString *nameOfIconForBundle(NSBundle *bundle) {
     NSDictionary *info = [bundle infoDictionary];
@@ -96,7 +147,7 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
     NSUInteger rsrcIdx = [urlComponents indexOfObject:@"Resources"];
     if (rsrcIdx == NSNotFound)
         return nil;
-
+    
     // Add support for the shorthand of calling the icon by the bundleidentifier.icns
     NSString *iconName = nameOfIconForBundle(bndl);
     NSString *lastObject = urlComponents.lastObject;
@@ -110,6 +161,37 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
             return iconURL;
         }
     }
+    
+    // Search the bundle's declared types to see if the resource we are looking for
+    // is actually an app icon
+    NSDictionary *index = typeIndexForBundle(bndl);
+    if (index.count) {
+        NSDictionary *entry = index[lastObject] ?: index[lastObject.stringByDeletingPathExtension];
+        
+        if (entry) {
+            NSArray *utis = entry[ABTypeIndexUTIsKey];
+            for (NSString *uti in utis) {
+                NSURL *url = customIconForUTI(uti);
+                if (url)
+                    return url;
+            }
+            
+            NSArray *extensions = entry[ABTypeIndexExtensionsKey];
+            for (NSString *ext in extensions) {
+                NSURL *url = customIconForExtension(ext);
+                if (url)
+                    return url;
+            }
+            
+            NSArray *ostypes = entry[ABTypeIndexOSTypesKey];
+            for (NSString *ostype in ostypes) {
+                NSURL *url = customIconForOSType(ostype);
+                if (url)
+                    return url;
+            }
+        }
+    }
+
     
     testURL = URLForBundle(bndl);
     for (NSUInteger x =  rsrcIdx + 1; x < urlComponents.count; x++) {

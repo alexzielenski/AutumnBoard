@@ -110,11 +110,12 @@ OPInitialize {
     if (ABIsInQuicklook()) {
         return;
     }
-
-    CGImageReadCreateWithURL = OPFindSymbol(NULL, "_CGImageReadCreateWithURL");
-    OPHookFunction(CGImageReadCreateWithURL);
-    OPHookFunction(CGImageSourceCreateWithURL);
-    OPHookFunction(CGDataProviderCreateWithFilename);
-    OPHookFunction(CGDataProviderCreateWithURL);
-    OPHookFunction(CFURLCreateData);
+    
+    //!TODO: Decide if we need this anymore
+//    CGImageReadCreateWithURL = OPFindSymbol(NULL, "_CGImageReadCreateWithURL");
+//    OPHookFunction(CGImageReadCreateWithURL);
+//    OPHookFunction(CGImageSourceCreateWithURL);
+//    OPHookFunction(CGDataProviderCreateWithFilename);
+//    OPHookFunction(CGDataProviderCreateWithURL);
+//    OPHookFunction(CFURLCreateData);
 }
