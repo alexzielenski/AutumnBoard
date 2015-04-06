@@ -80,76 +80,6 @@ NSURL *iconForBundle(NSBundle *bundle) {
     return ([bundle URLForResource:iconName.stringByDeletingPathExtension withExtension:@"icns"]);
 }
 
-BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStringRef resourceType, CFStringRef subDir, CFURLRef *resourceURL) {
-    //!TODO: Also check the absolute path using original result
-    NSURL *finalURL = URLForBundle(bundle);
-    if (!finalURL)
-        return NO;
-    if (!resource)
-        return NO;
-    
-    if (subDir != NULL && CFStringGetLength(subDir) > 0) {
-        finalURL = [finalURL URLByAppendingPathComponent:(__bridge NSString *)(subDir)];
-    }
-    
-    // If the extensions is on resource, move it to resourceType
-    if (resourceType == NULL && ((__bridge NSString *)resource).pathExtension != nil) {
-        resourceType = (__bridge CFStringRef)((__bridge NSString *)resource).pathExtension;
-        resource = (__bridge CFStringRef)((__bridge NSString *)resource).stringByDeletingPathExtension;
-    }
-    
-    // Add support for the shorthand of calling the icon by the bundleidentifier.icns
-    NSString *iconName = nameOfIconForBundle(bundle);
-    if ([iconName isEqualToString:(__bridge NSString *)(resource)] ||
-        [iconName isEqualToString:[(__bridge NSString *)resource stringByAppendingPathExtension:(__bridge NSString *)resourceType]]) {
-        
-        NSURL *iconURL = [URLForBundle(bundle) URLByAppendingPathExtension:@"icns"];
-        if (iconURL && [[NSFileManager defaultManager] fileExistsAtPath:iconURL.path]) {
-            *resourceURL = (__bridge_retained CFURLRef)iconURL;
-            return YES;
-        }
-    }
-    
-    if (resourceType != NULL &&
-        resource != NULL &&
-        CFStringGetLength(resourceType) > 0 &&
-        CFStringGetLength(resource) > 0) {
-        // we know exactly what file we are looking for
-        finalURL = [finalURL URLByAppendingPathComponent:(__bridge NSString *)(resource)];
-        finalURL = [finalURL URLByAppendingPathExtension:(__bridge NSString *)resourceType];
-    } else {
-        // Search all files for something that matches this name
-        NSArray *fileNames = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:finalURL
-                                                           includingPropertiesForKeys:nil
-                                                                              options:NSDirectoryEnumerationSkipsSubdirectoryDescendants | NSDirectoryEnumerationSkipsPackageDescendants
-                                                                                error:nil];
-        if (!fileNames.count)
-            return NO;
-        
-        BOOL winning = NO;
-        for (NSURL *url in fileNames) {
-            NSString *name = url.lastPathComponent;
-            // case-sensitive?
-            if ([name.stringByDeletingPathExtension isEqualToString:(__bridge NSString *)(resource)] ||
-                [name isEqualToString:(__bridge NSString *)(resource)]) {
-                winning = YES;
-                finalURL = url;
-                break;
-            }
-        }
-        
-        if (!winning)
-            return NO;
-    }
-    
-    if (![[NSFileManager defaultManager] fileExistsAtPath:finalURL.path]) {
-        return NO;
-    }
-    
-    *resourceURL = (__bridge_retained CFURLRef)(finalURL);
-    return YES;
-}
-
 #pragma mark - Absolute Path Helpers
 
 NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
@@ -176,7 +106,7 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
         rsrcIdx == urlComponents.count - 2) {
         
         NSURL *iconURL = [URLForBundle(bndl) URLByAppendingPathExtension:@"icns"];
-        if (iconURL && [[NSFileManager defaultManager] fileExistsAtPath:iconURL.path]) {
+        if ([manager fileExistsAtPath:iconURL.path]) {
             return iconURL;
         }
     }
