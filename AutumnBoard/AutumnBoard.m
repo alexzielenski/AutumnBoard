@@ -15,8 +15,8 @@
 @end
 
 // NAMESPACING!
-ZKSwizzleInterface($_ZABImage, NSSidebarImage, NSImage)
-@implementation $_ZABImage
+ZKSwizzleInterface($_ZABSidebarImage, NSSidebarImage, NSImage)
+@implementation $_ZABSidebarImage
 
 /* Disable Finder Sidebar's Masking of the images. Probably don't want to do this since SideBar images are gray anyway
  but we want any images we replace to be unmasked 

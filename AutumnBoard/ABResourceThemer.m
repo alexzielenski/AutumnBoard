@@ -81,6 +81,7 @@ NSURL *iconForBundle(NSBundle *bundle) {
 }
 
 BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStringRef resourceType, CFStringRef subDir, CFURLRef *resourceURL) {
+    //!TODO: Also check the absolute path using original result
     NSURL *finalURL = URLForBundle(bundle);
     if (!finalURL)
         return NO;
@@ -151,8 +152,8 @@ BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStringRef re
 
 #pragma mark - Absolute Path Helpers
 
-NSURL *replacementURLForURL(NSURL *url) {
-    if (!url || !url.isFileURL)
+NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
+    if (!url || !url.isFileURL || !bndl.bundleIdentifier)
         return nil;
     
     // Step 1, check absolute paths
@@ -160,14 +161,50 @@ NSURL *replacementURLForURL(NSURL *url) {
     NSURL *testURL = customIconForURL(url);
     if (testURL)
         return testURL;
+
+    NSArray *urlComponents = [url.path stringByReplacingOccurrencesOfString:bndl.bundlePath withString:@""].pathComponents;
+    NSUInteger rsrcIdx = [urlComponents indexOfObject:@"Resources"];
+    if (rsrcIdx == NSNotFound)
+        return nil;
+
+    // Add support for the shorthand of calling the icon by the bundleidentifier.icns
+    NSString *iconName = nameOfIconForBundle(bndl);
+    NSString *lastObject = urlComponents.lastObject;
+    if ((([iconName.stringByDeletingPathExtension isEqualToString:lastObject.stringByDeletingPathExtension] &&
+        [lastObject.pathExtension.lowercaseString isEqualToString:@"icns"]) ||
+        [iconName isEqualToString:lastObject]) &&
+        rsrcIdx == urlComponents.count - 2) {
+        
+        NSURL *iconURL = [URLForBundle(bndl) URLByAppendingPathExtension:@"icns"];
+        if (iconURL && [[NSFileManager defaultManager] fileExistsAtPath:iconURL.path]) {
+            return iconURL;
+        }
+    }
     
-    // Step 2, traverse down path until we get a bundle with an identifier
+    testURL = URLForBundle(bndl);
+    for (NSUInteger x =  rsrcIdx + 1; x < urlComponents.count; x++) {
+        testURL = [testURL URLByAppendingPathComponent:urlComponents[x]];
+    }
+    
+    if ([manager fileExistsAtPath:testURL.path])
+        return testURL;
+    
+    return nil;
+}
+
+NSURL *replacementURLForURL(NSURL *url) {
+    if (!url || !url.isFileURL)
+        return nil;
+    // traverse down path until we get a bundle with an identifier
     BOOL foundBundle = NO;
     NSBundle *bndl = nil;
-    testURL = [url URLByDeletingLastPathComponent];
+    NSURL *testURL = [url URLByDeletingLastPathComponent];
     NSUInteger cnt = 0;
     
-    while (![testURL.path isEqualToString:@"/.."] && !foundBundle && cnt++ <= 10) {
+    // reasonably limit the deep search to 10
+    while (![testURL.path isEqualToString:@"/.."] &&
+           !foundBundle &&
+           cnt++ <= 10) {
         bndl = [NSBundle bundleWithURL:testURL];
         if (bndl.bundleIdentifier) {
             foundBundle = YES;
@@ -177,22 +214,7 @@ NSURL *replacementURLForURL(NSURL *url) {
         testURL = [testURL URLByDeletingLastPathComponent];
     }
     
-    NSArray *pathComponents = url.pathComponents;
-    //!TODO: Check instead for last occurrance of Contents/Resources
-    //! or look at LaunchServices flags and see if this is a package (probably better)
-    if (foundBundle && [pathComponents containsObject:@"Resources"]) {
-        NSUInteger rsrcIdx = [pathComponents indexOfObject:@"Resources"];
-        testURL = URLForBundle(bndl);
-        
-        for (NSUInteger x =  rsrcIdx + 1; x < pathComponents.count; x++) {
-            testURL = [testURL URLByAppendingPathComponent:[pathComponents[x] copy]];
-        }
-        if ([manager fileExistsAtPath:testURL.path]) {
-            return testURL;
-        }
-    }
-    
-    return nil;
+    return replacementURLForURLRelativeToBundle(url, bndl);
 }
 
 NSURL *customIconForURL(NSURL *url) {

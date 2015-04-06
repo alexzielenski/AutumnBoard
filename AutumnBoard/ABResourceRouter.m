@@ -14,30 +14,46 @@
 
 #pragma mark URL Rerouting
 
-OPHook4(CFURLRef, CFBundleCopyResourceURL, CFBundleRef, bundle, CFStringRef, resourceName, CFStringRef, resourceType, CFStringRef, subDirName) {
-    CFURLRef finalURL = NULL;
+CFTypeRef _CFBundleCopyFindResources(CFBundleRef bundle, CFURLRef bundleURL, CFArrayRef languages, CFStringRef resourceName, CFStringRef resourceType, CFStringRef subPath, CFStringRef lproj, Boolean returnArray, Boolean localized, Boolean (^predicate)(CFStringRef filename, Boolean *stop));
+CFTypeRef (*O__CFBundleCopyFindResources)(CFBundleRef bundle, CFURLRef bundleURL, CFArrayRef languages, CFStringRef resourceName, CFStringRef resourceType, CFStringRef subPath, CFStringRef lproj, Boolean returnArray, Boolean localized, Boolean (^predicate)(CFStringRef filename, Boolean *stop));
+
+CFTypeRef $_CFBundleCopyFindResources(CFBundleRef bundle, CFURLRef bundleURL, CFArrayRef languages, CFStringRef resourceName, CFStringRef resourceType, CFStringRef subPath, CFStringRef lproj, Boolean returnArray, Boolean localized, Boolean (^predicate)(CFStringRef filename, Boolean *stop)) {
+    CFTypeRef rtn = O__CFBundleCopyFindResources(bundle, bundleURL, languages, resourceName, resourceType, subPath, lproj, returnArray, localized, predicate);
     
-    // for some reason when I __bridge over cfbundle shit breaks
+    if (!bundle) {
+        return rtn;
+    }
     NSBundle *nsBundle = [NSBundle bundleWithPath:((__bridge_transfer NSURL *)CFBundleCopyBundleURL(bundle)).path];
-    if (!hasResourceForBundle(nsBundle, resourceName, resourceType, subDirName, &finalURL)) {
-        finalURL = OPOldCall(bundle, resourceName, resourceType, subDirName);
-    }
-    
-    return finalURL;
-}
+    if (returnArray) {
 
-OPHook4(CFURLRef, CFBundleCopyResourceURLInDirectory, CFURLRef, bundleURL, CFStringRef, resourceName, CFStringRef, resourceType, CFStringRef, subDirName) {
-    CFURLRef finalURL = NULL;
-    
-    if (bundleURL) {
-        NSBundle *nsBundle = [NSBundle bundleWithURL:(__bridge NSURL *)bundleURL];
-        if (!hasResourceForBundle(nsBundle, resourceName, resourceType, subDirName, &finalURL)) {
-            finalURL = OPOldCall(bundleURL, resourceName, resourceType, subDirName);
+        CFArrayRef array = (CFArrayRef)rtn;
+        NSMutableArray *ar = [NSMutableArray arrayWithCapacity:CFArrayGetCount(array)];
+        for (CFIndex idx = 0; idx < CFArrayGetCount(array); idx++) {
+            CFURLRef url = CFArrayGetValueAtIndex(array, idx);
+            NSURL *replacement = replacementURLForURLRelativeToBundle((__bridge NSURL*)url, nsBundle);
+            
+            if (replacement) {
+                [ar addObject:replacement];
+            } else {
+                [ar addObject:(__bridge NSURL *)url];
+            }
         }
+        
+        CFRelease(array);
+        return (__bridge_retained CFArrayRef)ar;
+    } else {
+        CFURLRef url = (CFURLRef)rtn;
+        CFURLRef replacement = (__bridge_retained CFURLRef)replacementURLForURLRelativeToBundle((__bridge NSURL*)url, nsBundle);
+        
+        if (replacement) {
+            CFRelease(url);
+            return replacement;
+        }
+        
+        return url;
     }
-
-    return finalURL;
 }
+
 
 #pragma mark - Shit that's probably unnecessary
 
@@ -81,8 +97,10 @@ OPHook3(void *, CGImageReadCreateWithURL, CFURLRef, url, int, arg1, int, arg2) {
 }
 
 OPInitialize {
-    OPHookFunction(CFBundleCopyResourceURLInDirectory);
-    OPHookFunction(CFBundleCopyResourceURL);
+//    CFBundleCopyFindResources = OPFindSymbol(NULL, "__CFBundleCopyFindResources");
+//    OPHookFunction(CFBundleCopyResourceURLInDirectory);
+//    OPHookFunction(CFBundleCopyResourceURL);
+    OPHookFunctionPtr(_CFBundleCopyFindResources, $_CFBundleCopyFindResources, (void **)&O__CFBundleCopyFindResources);
     
     // Quicklook should always return the original image
     //!TODO: Expand this list to photoshop/acorn/preview/pixelmator/sketch

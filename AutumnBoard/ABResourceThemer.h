@@ -14,6 +14,7 @@
 NSURL *iconForBundle(NSBundle *bundle);
 BOOL hasResourceForBundle(NSBundle *bundle, CFStringRef resource, CFStringRef resourceType, CFStringRef subDir, CFURLRef *resourceURL);
 NSURL *replacementURLForURL(NSURL *url);
+NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl);
 
 NSURL *customIconForURL(NSURL *url);
 NSURL *customIconForOSType(NSString *type);
