@@ -171,7 +171,7 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
         // see if we theme this UTI or any of its associated extensions/ostypes
         customURL = customIconForUTI(uti);
         
-        if (url && !customURL) {
+        if (!customURL) {
             // Get the UTI ourselves from the extension or something
             NSString *ext = url.pathExtension ?: (__bridge NSString *)ABFileInfoBindingGetExtension(destination);
             customURL = customIconForExtension(ext);
