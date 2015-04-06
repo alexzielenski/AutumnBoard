@@ -40,7 +40,7 @@ static void ABBindingSetIconRef(ABBindingRef binding, IconRef icon);
 static CFURLRef ABLinkBindingGetURL(ABBindingRef binding);
 static CFURLRef ABBundleBindingGetURL(ABBindingRef binding);
 static CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding);
-static UInt64 ABFileInfoBindingInfoGetFlags(ABBindingRef binding);
+static UInt64 ABFileInfoBindingGetFlags(ABBindingRef binding);
 static CFStringRef ABVolumeBindingGetBundleIdentifier(ABBindingRef binding);
 static CFStringRef ABVolumeBindingGetBundleIconResourceName(ABBindingRef binding);
 
@@ -48,9 +48,6 @@ static ABBindingRef ABLinkBindingResolve(ABBindingRef binding);
 static ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding);
 static ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding);
 static ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding);
-
-static void *(*RetainBinding)(ABBindingRef binding, BOOL arg1);
-static void *(*ReleaseBinding)(ABBindingRef binding, BOOL arg1);
 
 static struct _ABBindingOffsets {
     UInt64 getBindingClass;
@@ -187,7 +184,7 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
                 ostype = GetSidebarVariantType(ABBindingGetOSType(destination),
                                                NULL,
                                                ABBindingCopyUTI(destination),
-                                               ABFileInfoBindingInfoGetFlags(destination));
+                                               ABFileInfoBindingGetFlags(destination));
             }
             
             // Getting an OS Type off of the path for dirs breaks
@@ -213,7 +210,7 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
                 else if (info.flags & kLSItemInfoIsContainer)
                     ostype = kGenericFolderIcon;
                 // Executables get the executable icon
-                else if (ABFileInfoBindingInfoGetFlags(destination) == 1) // executable
+                else if (ABFileInfoBindingGetFlags(destination) == 1) // executable
                     ostype = 'xTol';
                 // Otherwise try to use the LaunchServices ostype (which is likely still '????')
                 else
@@ -356,7 +353,7 @@ static CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding) {
     return NULL;
 }
 
-static UInt64 ABFileInfoBindingInfoGetFlags(ABBindingRef binding) {
+static UInt64 ABFileInfoBindingGetFlags(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassFileInfo) {
         return ABBindingMethods.getFlags(binding);
     }
