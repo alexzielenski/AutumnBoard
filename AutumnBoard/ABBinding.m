@@ -11,44 +11,6 @@
 #import "ABResourceThemer.h"
 #import <Opee/Opee.h>
 
-typedef NS_ENUM(NSUInteger, ABBindingClass) {
-    ABBindingClassFileInfo  = 1,
-    ABBindingClassBundle    = 2,
-    // Skipped?
-    ABBindingClassCustom    = 4,
-    ABBindingClassLink      = 5,
-    ABBindingClassVariant   = 6,
-    ABBindingClassComposite = 7,
-    // Skipped?
-    ABBindingClassVolume    = 9,
-    ABBindingClassUTI       = 10,
-    ABBindingClassSideFault = 11
-};
-
-static CFStringRef ABBindingCopyUTI(ABBindingRef arg0);
-
-static ABBindingClass ABBindingGetBindingClass(ABBindingRef binding);
-static bool ABBindingIsSidebarVariant(ABBindingRef binding);
-static void ABBindingOverride(ABBindingRef destination, ABBindingRef custom);
-
-static NSString *ABBindingCopyDescription(ABBindingRef binding);
-static CFURLRef ABBindingGetURL(ABBindingRef binding);
-static UInt32 ABBindingGetOSType(ABBindingRef binding);
-static IconRef ABBindingGetIconRef(ABBindingRef binding);
-static void ABBindingSetIconRef(ABBindingRef binding, IconRef icon);
-
-static CFURLRef ABLinkBindingGetURL(ABBindingRef binding);
-static CFURLRef ABBundleBindingGetURL(ABBindingRef binding);
-static CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding);
-static UInt64 ABFileInfoBindingGetFlags(ABBindingRef binding);
-static CFStringRef ABVolumeBindingGetBundleIdentifier(ABBindingRef binding);
-static CFStringRef ABVolumeBindingGetBundleIconResourceName(ABBindingRef binding);
-
-static ABBindingRef ABLinkBindingResolve(ABBindingRef binding);
-static ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding);
-static ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding);
-static ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding);
-
 static struct _ABBindingOffsets {
     UInt64 getBindingClass;
     UInt64 getOSType;
@@ -247,11 +209,11 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
 
 #pragma mark - ABBinding Methods
 
-static void ABBindingOverride(ABBindingRef destination, ABBindingRef custom) {
+void ABBindingOverride(ABBindingRef destination, ABBindingRef custom) {
     ABBindingMethods.overrideBinding(destination, custom);
 }
 
-static CFStringRef ABBindingCopyUTI(ABBindingRef arg0) {
+CFStringRef ABBindingCopyUTI(ABBindingRef arg0) {
     if (!arg0)
         return NULL;
     
@@ -263,7 +225,7 @@ static CFStringRef ABBindingCopyUTI(ABBindingRef arg0) {
     return copyUTI(arg0);
 }
 
-static UInt32 ABBindingGetOSType(ABBindingRef binding) {
+UInt32 ABBindingGetOSType(ABBindingRef binding) {
     if (!binding)
         return '????';
     
@@ -274,7 +236,7 @@ static UInt32 ABBindingGetOSType(ABBindingRef binding) {
     return getType(binding);
 }
 
-static ABBindingClass ABBindingGetBindingClass(ABBindingRef binding) {
+ABBindingClass ABBindingGetBindingClass(ABBindingRef binding) {
     if (!binding)
         return 0x0;
     
@@ -286,7 +248,7 @@ static ABBindingClass ABBindingGetBindingClass(ABBindingRef binding) {
 
 #pragma mark - ABBinding Variables
 
-static IconRef ABBindingGetIconRef(ABBindingRef binding) {
+IconRef ABBindingGetIconRef(ABBindingRef binding) {
     if (!binding)
         return NULL;
     
@@ -296,13 +258,13 @@ static IconRef ABBindingGetIconRef(ABBindingRef binding) {
     return NULL;
 }
 
-static void ABBindingSetIconRef(ABBindingRef binding, IconRef icon) {
+void ABBindingSetIconRef(ABBindingRef binding, IconRef icon) {
     if (binding && IsValidIconRef(icon)) {
         *(IconRef *)((uint8_t *)binding + 0x8) = icon;
     }
 }
 
-static bool ABBindingIsSidebarVariant(ABBindingRef binding) {
+bool ABBindingIsSidebarVariant(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassVariant) {
         UInt32 flags = *(OSType *)((uint8_t *)binding + 0x48);
         return flags != 0;
@@ -311,14 +273,14 @@ static bool ABBindingIsSidebarVariant(ABBindingRef binding) {
     return false;
 }
 
-static CFURLRef ABBindingGetURL(ABBindingRef binding) {
+CFURLRef ABBindingGetURL(ABBindingRef binding) {
     CFURLRef url = ABBundleBindingGetURL(binding) ?: ABLinkBindingGetURL(binding);
     return url;
 }
 
 #pragma mark - Class-Specific
 
-static ABBindingRef ABLinkBindingResolve(ABBindingRef binding) {
+ABBindingRef ABLinkBindingResolve(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassLink) {
         // resolveBinding puts the resolved binding into LinkBinding + 0x60
         ABBindingMethods.resolveBinding(binding);
@@ -327,64 +289,64 @@ static ABBindingRef ABLinkBindingResolve(ABBindingRef binding) {
     return NULL;
 }
 
-static CFURLRef ABLinkBindingGetURL(ABBindingRef binding) {
+CFURLRef ABLinkBindingGetURL(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassLink)
         return *(CFURLRef *)((uint8_t *)binding + 0x58);
     return NULL;
 }
 
-static ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding) {
+ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassComposite) {
         return *(ABBindingRef *)((uint8_t *)binding + 0x40);
     }
     return NULL;
 }
 
-static ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding) {
+ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassComposite) {
         return *(ABBindingRef *)((uint8_t *)binding + 0x48);
     }
     return NULL;
 }
 
-static CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding) {
+CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassFileInfo)
         return *(CFStringRef *)((uint8_t *)binding + 0x40);
     return NULL;
 }
 
-static UInt64 ABFileInfoBindingGetFlags(ABBindingRef binding) {
+UInt64 ABFileInfoBindingGetFlags(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassFileInfo) {
         return ABBindingMethods.getFlags(binding);
     }
     return 0;
 }
 
-static CFURLRef ABBundleBindingGetURL(ABBindingRef binding) {
+CFURLRef ABBundleBindingGetURL(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassBundle)
         return *(CFURLRef *)((uint8_t *)binding + 0x40);
     return NULL;
 }
 
-static ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding) {
+ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassVariant)
         return *(ABBindingRef *)((uint8_t *)binding + 0x40);
     return NULL;
 }
 
-static CFStringRef ABVolumeBindingGetBundleIdentifier(ABBindingRef binding) {
+CFStringRef ABVolumeBindingGetBundleIdentifier(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassVolume)
         return *(CFStringRef *)((uint8_t *)binding + 0x48);
     return NULL;
 }
 
-static CFStringRef ABVolumeBindingGetBundleIconResourceName(ABBindingRef binding) {
+CFStringRef ABVolumeBindingGetBundleIconResourceName(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassVolume)
         return *(CFStringRef *)((uint8_t *)binding + 0x50);
     return NULL;
 }
 
-static NSString *ABBindingCopyDescription(ABBindingRef binding) {
+NSString *ABBindingCopyDescription(ABBindingRef binding) {
     if (!binding)
         return nil;
     
