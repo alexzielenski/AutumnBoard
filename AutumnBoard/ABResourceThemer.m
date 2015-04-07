@@ -42,6 +42,7 @@ static NSURL *URLForBundle(NSBundle *bundle) {
     if (!identifier) {
         return nil;
     }
+    
     return [[ThemePath URLByAppendingPathComponent:@"Bundles"] URLByAppendingPathComponent:identifier];
 }
 
@@ -51,6 +52,14 @@ NSURL *URLForOSType(NSString *type) {
 
 NSURL *URLForUTIFile(NSString *name) {
     return [[[ThemePath URLByAppendingPathComponent:@"UTIs"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"];
+}
+
+NSURL *URLForExtension(NSString *name) {
+    return [[[ThemePath URLByAppendingPathComponent:@"Extensions"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"];
+}
+
+NSURL *URLForAbsolutePath(NSURL *path) {
+    return [[[ThemePath URLByAppendingPathComponent:@"Absolutes"] URLByAppendingPathComponent:[path.path stringByAbbreviatingWithTildeInPath]] URLByAppendingPathExtension:@"icns"];
 }
 
 #pragma mark - Bundle Helpers
@@ -131,7 +140,12 @@ NSURL *iconForBundle(NSBundle *bundle) {
         return nil;
     }
     
-    return ([bundle URLForResource:iconName.stringByDeletingPathExtension withExtension:@"icns"]);
+    if (!iconName.pathExtension)
+        iconName = [iconName stringByAppendingPathExtension:@"icns"];
+    
+    NSURL *iconURL = [bundle.resourceURL URLByAppendingPathComponent:iconName];
+    NSURL *replacement = customIconForURL(iconURL) ?: replacementURLForURLRelativeToBundle(iconURL, bundle);
+    return replacement;
 }
 
 #pragma mark - Absolute Path Helpers
@@ -239,7 +253,7 @@ NSURL *customIconForURL(NSURL *url) {
     // Step 1, check if our theme structure has a custom icon for this hardcoded
     NSFileManager *manager = [NSFileManager defaultManager];
     BOOL isDir = NO;
-    NSURL *testURL = [[ThemePath URLByAppendingPathComponent:[url.path stringByAbbreviatingWithTildeInPath]] URLByAppendingPathExtension:@"icns"];
+    NSURL *testURL = URLForAbsolutePath(url);
     if ([manager fileExistsAtPath:testURL.path isDirectory:&isDir] && !isDir) {
         return testURL;
     }
@@ -290,7 +304,7 @@ NSURL *customIconForUTI(NSString *uti) {
     // step 2: get all of the extensions for this uti and check against that
     NSArray *extensions = (__bridge_transfer NSArray *)(UTTypeCopyAllTagsWithClass((__bridge CFStringRef)(uti), kUTTagClassFilenameExtension));
     for (NSString *extension in extensions) {
-        tentativeURL = URLForUTIFile(extension);
+        tentativeURL = URLForExtension(extension);
         if ([manager fileExistsAtPath: tentativeURL.path]) {
             return tentativeURL;
         }
@@ -313,7 +327,7 @@ NSURL *customIconForExtension(NSString *extension) {
         return nil;
     
     // step 1, check if we have the actual extension.icns
-    NSURL *tentativeURL = URLForUTIFile(extension);
+    NSURL *tentativeURL = URLForExtension(extension);
     NSFileManager *manager = [NSFileManager defaultManager];
     if ([manager fileExistsAtPath:tentativeURL.path]) {
         return tentativeURL;
