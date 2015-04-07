@@ -17,11 +17,11 @@ static NSURL *URLForOSType(NSString *type);
 static NSURL *URLForUTIFile(NSString *name);
 static NSDictionary *typeIndexForBundle(NSBundle *bundle);
 
-static NSString *const ABTypeIndexUTIsKey = @"utis";
+static NSString *const ABTypeIndexUTIsKey       = @"utis";
 static NSString *const ABTypeIndexExtensionsKey = @"extenions";
-static NSString *const ABTypeIndexMIMEsKey = @"mimes";
-static NSString *const ABTypeIndexOSTypesKey = @"ostypes";
-static NSString *const ABTypeIndexRoleKey = @"role";
+static NSString *const ABTypeIndexMIMEsKey      = @"mimes";
+static NSString *const ABTypeIndexOSTypesKey    = @"ostypes";
+static NSString *const ABTypeIndexRoleKey       = @"role";
 
 OPInitialize {
     ThemePath = [NSURL fileURLWithPath:@"/Library/AutumnBoard/Themes/Fladder2"];
@@ -55,6 +55,8 @@ NSURL *URLForUTIFile(NSString *name) {
 
 #pragma mark - Bundle Helpers
 //!TODO: see if we should actually set up a daemon for this since it is quite expensive to do for every single application
+//!or maybe when the user applies the theme we could scan every single element in UTIs/OSTypes in general build this index
+//!at "compile" time and save it to the info.plist to make initial lookups faster
 static NSDictionary *typeIndexForBundle(NSBundle *bundle) {
     static NSMutableDictionary *cache = nil;
     static dispatch_once_t onceToken;
@@ -81,14 +83,15 @@ static NSDictionary *typeIndexForBundle(NSBundle *bundle) {
         NSMutableDictionary *entry = (NSMutableDictionary *)index[icon];
         if (!entry) {
             entry = [NSMutableDictionary dictionary];
-            entry[ABTypeIndexUTIsKey] = [NSMutableArray array];
+            entry[ABTypeIndexUTIsKey]       = [NSMutableArray array];
             entry[ABTypeIndexExtensionsKey] = [NSMutableArray array];
-            entry[ABTypeIndexMIMEsKey] = [NSMutableArray array];
-            entry[ABTypeIndexOSTypesKey] = [NSMutableArray array];
-            
+            entry[ABTypeIndexMIMEsKey]      = [NSMutableArray array];
+            entry[ABTypeIndexOSTypesKey]    = [NSMutableArray array];
+
             index[icon] = entry;
         }
         
+        // We need to do this incase the app uses the same icon for different document types
         [(NSMutableArray *)entry[ABTypeIndexUTIsKey] addObjectsFromArray:type[@"LSItemContentTypes"]];
         [(NSMutableArray *)entry[ABTypeIndexExtensionsKey] addObjectsFromArray:type[@"CFBundleTypeExtensions"]];
         [(NSMutableArray *)entry[ABTypeIndexMIMEsKey] addObjectsFromArray:type[@"CFBundleTypeMIMETypes"]];
