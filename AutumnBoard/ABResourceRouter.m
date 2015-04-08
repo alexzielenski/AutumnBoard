@@ -96,7 +96,23 @@ OPHook3(void *, CGImageReadCreateWithURL, CFURLRef, url, int, arg1, int, arg2) {
     return OPOldCall(url, arg1, arg2);
 }
 
+static CFStringRef (*__UTTypeCopyIconFileName)(CFStringRef uti, CFStringRef conformingToType, CFURLRef *baseURL, BOOL *success);
+OPHook4(CFStringRef, __UTTypeCopyIconFileName, CFStringRef, uti, CFStringRef, conformingToType, CFURLRef *, baseURL, BOOL *, success) {
+    NSURL *replacement = customIconForUTI((__bridge NSString *)uti);
+    if (replacement) {
+        if (success)
+            *success = YES;
+        if (baseURL)
+            *baseURL = (__bridge_retained CFURLRef)(replacement.URLByDeletingLastPathComponent);
+        return (__bridge_retained CFStringRef)replacement.lastPathComponent;
+    }
+    
+    return OPOldCall(uti, conformingToType, baseURL, success);
+}
+
 OPInitialize {
+    __UTTypeCopyIconFileName = OPFindSymbol(NULL, "__UTTypeCopyIconFileName");
+    OPHookFunction(__UTTypeCopyIconFileName);
 //    CFBundleCopyFindResources = OPFindSymbol(NULL, "__CFBundleCopyFindResources");
 //    OPHookFunction(CFBundleCopyResourceURLInDirectory);
 //    OPHookFunction(CFBundleCopyResourceURL);
