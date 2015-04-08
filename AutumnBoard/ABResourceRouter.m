@@ -54,48 +54,6 @@ CFTypeRef $_CFBundleCopyFindResources(CFBundleRef bundle, CFURLRef bundleURL, CF
     }
 }
 
-
-#pragma mark - Shit that's probably unnecessary
-
-OPHook1(CGDataProviderRef, CGDataProviderCreateWithFilename, const char *, filename) {
-    NSURL *url = [NSURL fileURLWithPath:@(filename)];
-    if ((url = replacementURLForURL(url))) {
-        return OPOldCall(url.path.UTF8String);
-    }
-    
-    return OPOldCall(filename);
-}
-
-OPHook1(CGDataProviderRef, CGDataProviderCreateWithURL, CFURLRef, url) {
-    NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
-    if (replacement)
-        url = (__bridge CFURLRef)replacement;
-    return OPOldCall(url);
-}
-
-OPHook4(CFDataRef, CFURLCreateData, CFAllocatorRef, allocator, CFURLRef, url, CFStringEncoding, encoding, Boolean, escapeWhitespace) {
-    NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
-    if (replacement)
-        url = (__bridge CFURLRef)replacement;
-    return OPOldCall(allocator, url, encoding, escapeWhitespace);
-}
-
-OPHook2(CGImageSourceRef, CGImageSourceCreateWithURL, CFURLRef, url, CFDictionaryRef, options) {
-    NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
-    if (replacement)
-        url = (__bridge CFURLRef)replacement;
-    return OPOldCall(url, options);
-}
-
-void (*CGImageReadCreateWithURL)(CFURLRef arg0, int arg1, int arg2);
-OPHook3(void *, CGImageReadCreateWithURL, CFURLRef, url, int, arg1, int, arg2) {
-    NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
-    if (replacement)
-        url = (__bridge CFURLRef)replacement;
-    
-    return OPOldCall(url, arg1, arg2);
-}
-
 static CFStringRef (*__UTTypeCopyIconFileName)(CFStringRef uti, CFStringRef conformingToType, CFURLRef *baseURL, BOOL *success);
 OPHook4(CFStringRef, __UTTypeCopyIconFileName, CFStringRef, uti, CFStringRef, conformingToType, CFURLRef *, baseURL, BOOL *, success) {
     NSURL *replacement = customIconForUTI((__bridge NSString *)uti);
@@ -114,24 +72,5 @@ OPInitialize {
     __UTTypeCopyIconFileName = OPFindSymbol(NULL, "__UTTypeCopyIconFileName");
     OPHookFunction(__UTTypeCopyIconFileName);
 //    CFBundleCopyFindResources = OPFindSymbol(NULL, "__CFBundleCopyFindResources");
-//    OPHookFunction(CFBundleCopyResourceURLInDirectory);
-//    OPHookFunction(CFBundleCopyResourceURL);
     OPHookFunctionPtr(_CFBundleCopyFindResources, $_CFBundleCopyFindResources, (void **)&O__CFBundleCopyFindResources);
-    
-    // Quicklook should always return the original image
-    //!TODO: Expand this list to photoshop/acorn/preview/pixelmator/sketch
-    //! basically anything that has its UTI Role set to editor (viewer?) for the given file
-    //! but only for the safety methods CFURLCreateData, CGDataProviderCreateWith(URL/FIlename), CGImageSourceCreatewithURL
-
-    if (ABIsInQuicklook()) {
-        return;
-    }
-    
-    //!TODO: Decide if we need this anymore
-//    CGImageReadCreateWithURL = OPFindSymbol(NULL, "_CGImageReadCreateWithURL");
-//    OPHookFunction(CGImageReadCreateWithURL);
-//    OPHookFunction(CGImageSourceCreateWithURL);
-//    OPHookFunction(CGDataProviderCreateWithFilename);
-//    OPHookFunction(CGDataProviderCreateWithURL);
-//    OPHookFunction(CFURLCreateData);
 }
