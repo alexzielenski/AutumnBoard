@@ -142,6 +142,9 @@ NSURL *iconForBundle(NSBundle *bundle) {
     
     NSString *iconName = nameOfIconForBundle(bundle);
     // This bundle has no icon, return our generic one
+    //!TODO: Decide if this is still necessary with UTICopyIconFilename
+    //! this functionality is unnecessary for me but I'm not sure if its just because
+    //! i'm injecting into the iconservicesagent root process
     if (!iconName || iconName.length == 0) {
         //!TODO: Even if there is an icon name, check to see if it exists
         if (bundle.infoDictionary.count && bundle.bundlePath.pathExtension.length)
