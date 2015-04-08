@@ -197,7 +197,10 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
     }
     
     if (customURL && class != ABBindingClassComposite) {
-        ABBindingRef custom = CreateWithResourceURL((__bridge CFURLRef)customURL, YES);
+        customURL = [NSURL URLByResolvingAliasFileAtURL:customURL options:NSURLBookmarkResolutionWithoutUI error:nil] ?: customURL;
+
+        ABBindingRef custom = CreateWithResourceURL((__bridge CFURLRef)[customURL URLByResolvingSymlinksInPath], YES);
+
         if (custom) {
             // Since these types call back for sidebar implementations we need to make
             // hax by preserving their type and re-registering their icon
