@@ -20,6 +20,4 @@ NSURL *customIconForOSType(NSString *type);
 NSURL *customIconForUTI(NSString *uti);
 NSURL *customIconForExtension(NSString *extension);
 
-BOOL ABIsInQuicklook();
-
 #endif /* defined(__AutumnBoard__ABResourceThemer__) */

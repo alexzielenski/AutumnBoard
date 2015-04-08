@@ -111,10 +111,6 @@ OPHook2(ABBindingRef, CreateWithSideFaultFile, CFURLRef, url, BOOL, flag) {
 //}
 
 OPInitialize {
-    // Don't fuck with Quicklook
-    if (ABIsInQuicklook())
-        return;
-    
     void *image = OPGetImageByName("/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices");
     CreateWithBookmarkData        = OPFindSymbol(image, "__ZN14BindingManager22CreateWithBookmarkDataEPK8__CFDatab");
     CreateWithResourceURL         = OPFindSymbol(image, "__ZN14BindingManager21CreateWithResourceURLEPK7__CFURLb");
