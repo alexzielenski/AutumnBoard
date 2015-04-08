@@ -43,23 +43,23 @@ static NSURL *URLForBundle(NSBundle *bundle) {
         return nil;
     }
     
-    return [[ThemePath URLByAppendingPathComponent:@"Bundles"] URLByAppendingPathComponent:identifier];
+    return [[[ThemePath URLByAppendingPathComponent:@"Bundles"] URLByAppendingPathComponent:identifier] URLByResolvingSymlinksInPath];
 }
 
 NSURL *URLForOSType(NSString *type) {
-    return [[[ThemePath URLByAppendingPathComponent:@"OSTypes"] URLByAppendingPathComponent:type] URLByAppendingPathExtension:@"icns"];
+    return [[[[ThemePath URLByAppendingPathComponent:@"OSTypes"] URLByAppendingPathComponent:type] URLByAppendingPathExtension:@"icns"] URLByResolvingSymlinksInPath];
 }
 
 NSURL *URLForUTIFile(NSString *name) {
-    return [[[ThemePath URLByAppendingPathComponent:@"UTIs"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"];
+    return [[[[ThemePath URLByAppendingPathComponent:@"UTIs"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"] URLByResolvingSymlinksInPath];
 }
 
 NSURL *URLForExtension(NSString *name) {
-    return [[[ThemePath URLByAppendingPathComponent:@"Extensions"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"];
+    return [[[[ThemePath URLByAppendingPathComponent:@"Extensions"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"] URLByResolvingSymlinksInPath];
 }
 
 NSURL *URLForAbsolutePath(NSURL *path) {
-    return [[[ThemePath URLByAppendingPathComponent:@"Absolutes"] URLByAppendingPathComponent:[path.path stringByAbbreviatingWithTildeInPath]] URLByAppendingPathExtension:@"icns"];
+    return [[[[ThemePath URLByAppendingPathComponent:@"Absolutes"] URLByAppendingPathComponent:[path.path stringByAbbreviatingWithTildeInPath]] URLByAppendingPathExtension:@"icns"] URLByResolvingSymlinksInPath];
 }
 
 #pragma mark - Bundle Helpers
@@ -212,7 +212,7 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
     
     testURL = URLForBundle(bndl);
     for (NSUInteger x =  rsrcIdx + 1; x < urlComponents.count; x++) {
-        testURL = [testURL URLByAppendingPathComponent:urlComponents[x]];
+        testURL = [[testURL URLByAppendingPathComponent:urlComponents[x]] URLByResolvingSymlinksInPath];
     }
     
     if ([manager fileExistsAtPath:testURL.path])
@@ -255,7 +255,7 @@ NSURL *customIconForURL(NSURL *url) {
     BOOL isDir = NO;
     NSURL *testURL = URLForAbsolutePath(url);
     if ([manager fileExistsAtPath:testURL.path isDirectory:&isDir] && !isDir) {
-        return testURL;
+        return [testURL URLByResolvingSymlinksInPath];
     }
     
 
@@ -284,7 +284,7 @@ NSURL *customIconForOSType(NSString *type) {
         // such as jpeg vs jpg in addition to public.jpeg
         tentativeURL = customIconForUTI(uti);
         if (tentativeURL)
-            return tentativeURL;
+            return [tentativeURL URLByResolvingSymlinksInPath];
     }
     
     return nil;
