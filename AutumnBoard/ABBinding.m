@@ -16,6 +16,8 @@ static struct _ABBindingOffsets {
     UInt64 getOSType;
     UInt64 copyUTI;
     UInt64 copyDebugDesc;
+    UInt64 getBadge;
+    UInt64 setBadge;
 } ABBindingOffsets;
 
 static struct _ABBindingMethods {
@@ -46,7 +48,9 @@ OPInitialize {
     void *getType         = OPFindSymbol(image, "__ZNK15FileInfoBinding7getTypeEv");
     void *getBindingClass = OPFindSymbol(image, "__ZNK15FileInfoBinding15getBindingClassEv");
     void *copyDebugDesc   = OPFindSymbol(image, "__ZNK15FileInfoBinding13copyDebugDescEv");
-    
+    void *getBadge        = OPFindSymbol(image, "__ZNK15FileInfoBinding8getBadgeEv");
+    void *setBadge        = OPFindSymbol(image, "__ZN7Binding8setBadgeEy");
+
     // Class-specific
     ABBindingMethods.overrideBinding = OPFindSymbol(image, "__ZN7Binding19overrideWithBindingEPS_");
     ABBindingMethods.getFlags        = OPFindSymbol(image, "__ZNK15FileInfoBinding8getFlagsEv");
@@ -68,7 +72,11 @@ OPInitialize {
         else if (ptr == getBindingClass && ABBindingOffsets.getBindingClass == 0)
             ABBindingOffsets.getBindingClass = offset;
         else if (ptr == copyDebugDesc && ABBindingOffsets.copyDebugDesc == 0)
-            ABBindingOffsets.copyDebugDesc = offset;
+            ABBindingOffsets.copyDebugDesc   = offset;
+        else if (ptr == getBadge && ABBindingOffsets.getBadge == 0)
+            ABBindingOffsets.getBadge        = offset;
+        else if (ptr == setBadge && ABBindingOffsets.setBadge == 0)
+            ABBindingOffsets.setBadge        = offset;
     }
 }
 
@@ -190,9 +198,12 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
         if (custom) {
             // Since these types call back for sidebar implementations we need to make
             // hax by preserving their type and re-registering their icon
-            if (class == ABBindingClassFileInfo ||
+            // But you directly set the icon on some badged icons
+            // the badge wouldn't show but overriding it will work.
+            if (ABBindingGetBadge(destination) == 0 &&
+                (class == ABBindingClassFileInfo ||
                 class == ABBindingClassUTI ||
-                class == ABBindingClassVolume) {
+                class == ABBindingClassVolume)) {
                 ABBindingSetIconRef(binding, ABBindingGetIconRef(custom));
             } else {
                 ABBindingOverride(binding, custom);
@@ -244,6 +255,20 @@ ABBindingClass ABBindingGetBindingClass(ABBindingRef binding) {
     // HEY GUYS LOOK AT ALL THESE CASTS!
     getClass = *(void **)((uint8_t *)(*(void **)binding) + ABBindingOffsets.getBindingClass);
     return getClass(binding);
+}
+
+UInt64 ABBindingGetBadge(ABBindingRef binding) {
+    UInt64 (*getBadge)(ABBindingRef binding);
+    // HEY GUYS LOOK AT ALL THESE CASTS!
+    getBadge = *(void **)((uint8_t *)(*(void **)binding) + ABBindingOffsets.getBadge);
+    return getBadge(binding);
+}
+
+void ABBindingSetBadge(ABBindingRef binding, UInt64 badge) {
+    void (*setBadge)(ABBindingRef binding, UInt64 badge);
+    // HEY GUYS LOOK AT ALL THESE CASTS!
+    setBadge = *(void **)((uint8_t *)(*(void **)binding) + ABBindingOffsets.setBadge);
+    setBadge(binding, badge);
 }
 
 #pragma mark - ABBinding Variables
