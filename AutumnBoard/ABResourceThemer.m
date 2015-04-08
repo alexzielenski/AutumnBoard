@@ -47,18 +47,27 @@ static NSURL *URLForBundle(NSBundle *bundle) {
 }
 
 NSURL *URLForOSType(NSString *type) {
+    if (!type)
+        return nil;
+    
     return [[[[ThemePath URLByAppendingPathComponent:@"OSTypes"] URLByAppendingPathComponent:type] URLByAppendingPathExtension:@"icns"] URLByResolvingSymlinksInPath];
 }
 
 NSURL *URLForUTIFile(NSString *name) {
+    if (!name)
+        return nil;
     return [[[[ThemePath URLByAppendingPathComponent:@"UTIs"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"] URLByResolvingSymlinksInPath];
 }
 
 NSURL *URLForExtension(NSString *name) {
+    if (!name)
+        return nil;
     return [[[[ThemePath URLByAppendingPathComponent:@"Extensions"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"] URLByResolvingSymlinksInPath];
 }
 
 NSURL *URLForAbsolutePath(NSURL *path) {
+    if (!path)
+        return nil;
     return [[[[ThemePath URLByAppendingPathComponent:@"Absolutes"] URLByAppendingPathComponent:[path.path stringByAbbreviatingWithTildeInPath]] URLByAppendingPathExtension:@"icns"] URLByResolvingSymlinksInPath];
 }
 
