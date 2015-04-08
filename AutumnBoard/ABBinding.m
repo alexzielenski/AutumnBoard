@@ -86,14 +86,22 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
     if (GetSidebarVariantType == NULL) {
         GetSidebarVariantType = OPFindSymbol(NULL, "__Z21GetSidebarVariantTypejPK10__CFStringS1_y");
     }
-    void *destination = binding;
-    
+
     // We don't want to do this for the bundle binding because they have a different
     // source of icons (they are covered in the nameOfIconFile and customIconForURL)
     // if their icons don't exist
-    ABBindingClass class = ABBindingGetBindingClass(destination);
+    ABBindingClass class = ABBindingGetBindingClass(binding);
+    void *destination = binding;
+    
     BOOL sidebar = ABBindingIsSidebarVariant(destination);
     NSURL *customURL = customIconForURL(url);
+    
+    if (class == ABBindingClassLink && !customURL) {
+        // Get the icon ref for the binding that this alias resolves to
+        // because the OSType for a link is always 'alis'
+        destination = ABLinkBindingResolve(destination);
+        class = ABBindingGetBindingClass(destination);
+    }
     
     // try first to get an icon for the bundle
     // the iconForBundle function handles the case where
@@ -116,12 +124,6 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
         }
     }
     
-    // Get the icon ref for the binding that this alias resolves to
-    // because the OSType for a link is always 'alis'
-    if (class == ABBindingClassLink) {
-        destination = ABLinkBindingResolve(destination);
-    }
-    
     // Dont fuck with custom icons
     // Dont fuck with bundles
     // I don't know what a SideFault file is – maybe an iCloud document?
@@ -130,6 +132,7 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
         class != ABBindingClassSideFault &&
         class != ABBindingClassCustom &&
         class != ABBindingClassComposite &&
+        class != ABBindingClassLink &&
         !customURL) {
         
         // ABBindingCopyUTI doesnt follow the create rule despite its name
@@ -170,7 +173,7 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
                 LSItemInfoRecord info;
                 NSURL *resolved = [NSURL URLByResolvingAliasFileAtURL:url
                                                               options:NSURLBookmarkResolutionWithoutUI | NSURLBookmarkResolutionWithoutMounting
-                                                                error:nil];
+                                                                error:nil] ?: url;
                 LSCopyItemInfoForURL((__bridge CFURLRef)resolved, kLSRequestBasicFlagsOnly, &info);
                 
                 // Packages get the little lego cube
