@@ -120,7 +120,7 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
         NSString *imageName = (__bridge NSString *)(ABVolumeBindingGetBundleIconResourceName(destination));
         if (identifier.length && imageName.length) {
             NSBundle *bndl = [NSBundle bundleWithIdentifier:identifier];
-            customURL = [bndl URLForResource:imageName.stringByDeletingPathExtension withExtension:imageName.pathExtension];
+            customURL = replacementURLForURLRelativeToBundle([bndl.resourceURL URLByAppendingPathComponent:imageName], bndl);
         }
     }
     
