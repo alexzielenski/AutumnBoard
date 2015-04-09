@@ -9,6 +9,8 @@
 #ifndef AutumnBoard_ABLogging_h
 #define AutumnBoard_ABLogging_h
 
+#import "AutumnBoard.h"
+
 #define OPLogLevelNotice LOG_NOTICE
 #define OPLogLevelWarning LOG_WARNING
 #define OPLogLevelError LOG_ERR

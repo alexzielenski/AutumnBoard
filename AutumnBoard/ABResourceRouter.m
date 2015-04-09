@@ -69,6 +69,9 @@ OPHook4(CFStringRef, __UTTypeCopyIconFileName, CFStringRef, uti, CFStringRef, co
 }
 
 OPInitialize {
+    if (!ABIsSupportedVersion())
+        return;
+    
     __UTTypeCopyIconFileName = OPFindSymbol(NULL, "__UTTypeCopyIconFileName");
     OPHookFunction(__UTTypeCopyIconFileName);
 //    CFBundleCopyFindResources = OPFindSymbol(NULL, "__CFBundleCopyFindResources");

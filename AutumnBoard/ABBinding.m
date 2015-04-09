@@ -11,14 +11,41 @@
 #import "ABResourceThemer.h"
 #import <Opee/Opee.h>
 
-static struct _ABBindingOffsets {
+static struct _ABBindingMethodOffsets {
     UInt64 getBindingClass;
     UInt64 getOSType;
     UInt64 copyUTI;
     UInt64 copyDebugDesc;
     UInt64 getBadge;
     UInt64 setBadge;
-} ABBindingOffsets;
+} ABBindingMethodOffsets;
+
+static struct _ABPropertyOffsets {
+    // All Bindings
+    UInt64 iconRef;
+    
+    // Variants
+    UInt64 variantType;
+    UInt64 variantBinding;
+    
+    // Links
+    UInt64 linkResolvedBinding;
+    UInt64 linkURL;
+    
+    // Composites
+    UInt64 compositeForeground;
+    UInt64 compositeBackground;
+    
+    // Bundles
+    UInt64 bundleURL;
+    
+    // File Info
+    UInt64 fileInfoExtension;
+    
+    // Volumes
+    UInt64 volumeIconBundleIdentifier;
+    UInt64 volumeIconResourceName;
+} ABBindingPropertyOffsets;
 
 static struct _ABBindingMethods {
     // Generic
@@ -65,18 +92,37 @@ OPInitialize {
     for (int x = 2; bindingVtable[x] != 0x0 && bindingVtable[x+1] != 0x0 && x < 64; x++) {
         void *ptr = bindingVtable[x];
         UInt64 offset = (x - 2) * sizeof(void *);
-        if (ptr == copyUTI && ABBindingOffsets.copyUTI == 0)
-            ABBindingOffsets.copyUTI         = offset;
-        else if (ptr == getType && ABBindingOffsets.getOSType == 0)
-            ABBindingOffsets.getOSType       = offset;
-        else if (ptr == getBindingClass && ABBindingOffsets.getBindingClass == 0)
-            ABBindingOffsets.getBindingClass = offset;
-        else if (ptr == copyDebugDesc && ABBindingOffsets.copyDebugDesc == 0)
-            ABBindingOffsets.copyDebugDesc   = offset;
-        else if (ptr == getBadge && ABBindingOffsets.getBadge == 0)
-            ABBindingOffsets.getBadge        = offset;
-        else if (ptr == setBadge && ABBindingOffsets.setBadge == 0)
-            ABBindingOffsets.setBadge        = offset;
+        if (ptr == copyUTI && ABBindingMethodOffsets.copyUTI == 0)
+            ABBindingMethodOffsets.copyUTI         = offset;
+        else if (ptr == getType && ABBindingMethodOffsets.getOSType == 0)
+            ABBindingMethodOffsets.getOSType       = offset;
+        else if (ptr == getBindingClass && ABBindingMethodOffsets.getBindingClass == 0)
+            ABBindingMethodOffsets.getBindingClass = offset;
+        else if (ptr == copyDebugDesc && ABBindingMethodOffsets.copyDebugDesc == 0)
+            ABBindingMethodOffsets.copyDebugDesc   = offset;
+        else if (ptr == getBadge && ABBindingMethodOffsets.getBadge == 0)
+            ABBindingMethodOffsets.getBadge        = offset;
+        else if (ptr == setBadge && ABBindingMethodOffsets.setBadge == 0)
+            ABBindingMethodOffsets.setBadge        = offset;
+    }
+    
+    //! OS-Version Specific Offsets
+    if (ABLaunchServicesVersionInRange(ABLaunchServicesVersion101002, ABLaunchServicesVersion101003)) {
+        struct _ABPropertyOffsets offs = {
+            .iconRef                    = 0x8,
+            .variantType                = 0x48,
+            .variantBinding             = 0x40,
+            .linkResolvedBinding        = 0x60,
+            .linkURL                    = 0x58,
+            .compositeForeground        = 0x40,
+            .compositeBackground        = 0x48,
+            .bundleURL                  = 0x40,
+            .fileInfoExtension          = 0x40,
+            .volumeIconBundleIdentifier = 0x48,
+            .volumeIconResourceName     = 0x50
+        };
+        
+        ABBindingPropertyOffsets = offs;
     }
 }
 
@@ -86,7 +132,6 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
     if (GetSidebarVariantType == NULL) {
         GetSidebarVariantType = OPFindSymbol(NULL, "__Z21GetSidebarVariantTypejPK10__CFStringS1_y");
     }
-
     // We don't want to do this for the bundle binding because they have a different
     // source of icons (they are covered in the nameOfIconFile and customIconForURL)
     // if their icons don't exist
@@ -238,7 +283,7 @@ CFStringRef ABBindingCopyUTI(ABBindingRef arg0) {
     
     // big hax to call C++ instance method from C
     CFStringRef (*copyUTI)(ABBindingRef binding);
-    copyUTI = *(void **)((uint8_t *)deref + ABBindingOffsets.copyUTI);
+    copyUTI = *(void **)((uint8_t *)deref + ABBindingMethodOffsets.copyUTI);
     return copyUTI(arg0);
 }
 
@@ -249,7 +294,7 @@ UInt32 ABBindingGetOSType(ABBindingRef binding) {
     void *deref = *(void **)binding;
     
     UInt32 (*getType)(ABBindingRef binding);
-    getType = *(void **)((uint8_t *)deref + ABBindingOffsets.getOSType);
+    getType = *(void **)((uint8_t *)deref + ABBindingMethodOffsets.getOSType);
     return getType(binding);
 }
 
@@ -259,21 +304,19 @@ ABBindingClass ABBindingGetBindingClass(ABBindingRef binding) {
     
     ABBindingClass (*getClass)(ABBindingRef binding);
     // HEY GUYS LOOK AT ALL THESE CASTS!
-    getClass = *(void **)((uint8_t *)(*(void **)binding) + ABBindingOffsets.getBindingClass);
+    getClass = *(void **)((uint8_t *)(*(void **)binding) + ABBindingMethodOffsets.getBindingClass);
     return getClass(binding);
 }
 
 UInt64 ABBindingGetBadge(ABBindingRef binding) {
     UInt64 (*getBadge)(ABBindingRef binding);
-    // HEY GUYS LOOK AT ALL THESE CASTS!
-    getBadge = *(void **)((uint8_t *)(*(void **)binding) + ABBindingOffsets.getBadge);
+    getBadge = *(void **)((uint8_t *)(*(void **)binding) + ABBindingMethodOffsets.getBadge);
     return getBadge(binding);
 }
 
 void ABBindingSetBadge(ABBindingRef binding, UInt64 badge) {
     void (*setBadge)(ABBindingRef binding, UInt64 badge);
-    // HEY GUYS LOOK AT ALL THESE CASTS!
-    setBadge = *(void **)((uint8_t *)(*(void **)binding) + ABBindingOffsets.setBadge);
+    setBadge = *(void **)((uint8_t *)(*(void **)binding) + ABBindingMethodOffsets.setBadge);
     setBadge(binding, badge);
 }
 
@@ -283,7 +326,7 @@ IconRef ABBindingGetIconRef(ABBindingRef binding) {
     if (!binding)
         return NULL;
     
-    void *iconRef = *(void **)((uint8_t *)binding + 0x8);
+    void *iconRef = *(void **)((uint8_t *)binding + ABBindingPropertyOffsets.iconRef);
     if (IsValidIconRef(iconRef))
         return iconRef;
     return NULL;
@@ -291,13 +334,13 @@ IconRef ABBindingGetIconRef(ABBindingRef binding) {
 
 void ABBindingSetIconRef(ABBindingRef binding, IconRef icon) {
     if (binding && IsValidIconRef(icon)) {
-        *(IconRef *)((uint8_t *)binding + 0x8) = icon;
+        *(IconRef *)((uint8_t *)binding + ABBindingPropertyOffsets.iconRef) = icon;
     }
 }
 
 bool ABBindingIsSidebarVariant(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassVariant) {
-        UInt32 flags = *(OSType *)((uint8_t *)binding + 0x48);
+        UInt32 flags = *(OSType *)((uint8_t *)binding + ABBindingPropertyOffsets.variantType);
         return flags != 0;
     }
     
@@ -315,34 +358,34 @@ ABBindingRef ABLinkBindingResolve(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassLink) {
         // resolveBinding puts the resolved binding into LinkBinding + 0x60
         ABBindingMethods.resolveBinding(binding);
-        return *(ABBindingRef *)((uint8_t *)binding + 0x60);
+        return *(ABBindingRef *)((uint8_t *)binding + ABBindingPropertyOffsets.linkResolvedBinding);
     }
     return NULL;
 }
 
 CFURLRef ABLinkBindingGetURL(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassLink)
-        return *(CFURLRef *)((uint8_t *)binding + 0x58);
+        return *(CFURLRef *)((uint8_t *)binding + ABBindingPropertyOffsets.linkURL);
     return NULL;
 }
 
 ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassComposite) {
-        return *(ABBindingRef *)((uint8_t *)binding + 0x40);
+        return *(ABBindingRef *)((uint8_t *)binding + ABBindingPropertyOffsets.compositeForeground);
     }
     return NULL;
 }
 
 ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassComposite) {
-        return *(ABBindingRef *)((uint8_t *)binding + 0x48);
+        return *(ABBindingRef *)((uint8_t *)binding + ABBindingPropertyOffsets.compositeBackground);
     }
     return NULL;
 }
 
 CFStringRef ABFileInfoBindingGetExtension(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassFileInfo)
-        return *(CFStringRef *)((uint8_t *)binding + 0x40);
+        return *(CFStringRef *)((uint8_t *)binding + ABBindingPropertyOffsets.fileInfoExtension);
     return NULL;
 }
 
@@ -355,25 +398,25 @@ UInt64 ABFileInfoBindingGetFlags(ABBindingRef binding) {
 
 CFURLRef ABBundleBindingGetURL(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassBundle)
-        return *(CFURLRef *)((uint8_t *)binding + 0x40);
+        return *(CFURLRef *)((uint8_t *)binding + ABBindingPropertyOffsets.bundleURL);
     return NULL;
 }
 
 ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassVariant)
-        return *(ABBindingRef *)((uint8_t *)binding + 0x40);
+        return *(ABBindingRef *)((uint8_t *)binding + ABBindingPropertyOffsets.variantBinding);
     return NULL;
 }
 
 CFStringRef ABVolumeBindingGetBundleIdentifier(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassVolume)
-        return *(CFStringRef *)((uint8_t *)binding + 0x48);
+        return *(CFStringRef *)((uint8_t *)binding + ABBindingPropertyOffsets.volumeIconBundleIdentifier);
     return NULL;
 }
 
 CFStringRef ABVolumeBindingGetBundleIconResourceName(ABBindingRef binding) {
     if (ABBindingGetBindingClass(binding) == ABBindingClassVolume)
-        return *(CFStringRef *)((uint8_t *)binding + 0x50);
+        return *(CFStringRef *)((uint8_t *)binding + ABBindingPropertyOffsets.volumeIconResourceName);
     return NULL;
 }
 
@@ -384,7 +427,7 @@ NSString *ABBindingCopyDescription(ABBindingRef binding) {
     void *deref = *(void **)binding;
     
     CFStringRef (*getDesc)(ABBindingRef binding);
-    getDesc = *(void **)((uint8_t *)deref + ABBindingOffsets.copyDebugDesc);
+    getDesc = *(void **)((uint8_t *)deref + ABBindingMethodOffsets.copyDebugDesc);
     return (__bridge_transfer NSString *)getDesc(binding);
 }
 

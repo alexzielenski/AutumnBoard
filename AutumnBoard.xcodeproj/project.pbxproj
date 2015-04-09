@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FA419A321AD61143006EA906 /* SUStandardVersionComparator.m in Sources */ = {isa = PBXBuildFile; fileRef = FA419A311AD61143006EA906 /* SUStandardVersionComparator.m */; };
 		FA46A74D1AD0440F00739C3B /* ABBinding.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A74B1AD0440F00739C3B /* ABBinding.m */; };
 		FA46A7511AD047D400739C3B /* ABResourceThemer.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A74F1AD047D400739C3B /* ABResourceThemer.m */; };
 		FA46A7541AD0480100739C3B /* ABBindingManager.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A7521AD0480100739C3B /* ABBindingManager.m */; };
@@ -17,6 +18,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		FA419A301AD61143006EA906 /* SUStandardVersionComparator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = SUStandardVersionComparator.h; path = Sparkle/SUStandardVersionComparator.h; sourceTree = "<group>"; };
+		FA419A311AD61143006EA906 /* SUStandardVersionComparator.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SUStandardVersionComparator.m; path = Sparkle/SUStandardVersionComparator.m; sourceTree = "<group>"; };
 		FA46A74B1AD0440F00739C3B /* ABBinding.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ABBinding.m; sourceTree = "<group>"; };
 		FA46A74C1AD0440F00739C3B /* ABBinding.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ABBinding.h; sourceTree = "<group>"; };
 		FA46A74E1AD0446000739C3B /* ABLogging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ABLogging.h; sourceTree = "<group>"; };
@@ -26,6 +29,7 @@
 		FA46A7531AD0480100739C3B /* ABBindingManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ABBindingManager.h; sourceTree = "<group>"; };
 		FA46A7551AD050BA00739C3B /* ABResourceRouter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ABResourceRouter.m; sourceTree = "<group>"; };
 		FA46A7561AD050BA00739C3B /* ABResourceRouter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ABResourceRouter.h; sourceTree = "<group>"; };
+		FACF42321AD5CC100035E697 /* AutumnBoard.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AutumnBoard.h; sourceTree = "<group>"; };
 		FAE4FAB41ACC87B2003283C5 /* AutumnBoard.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AutumnBoard.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
 		FAE4FAB81ACC87B2003283C5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FAE4FABE1ACC885D003283C5 /* Opee.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Opee.framework; path = ../../../../../../Library/Frameworks/Opee.framework; sourceTree = "<group>"; };
@@ -68,6 +72,9 @@
 			isa = PBXGroup;
 			children = (
 				FAE4FAB71ACC87B2003283C5 /* Supporting Files */,
+				FA419A301AD61143006EA906 /* SUStandardVersionComparator.h */,
+				FA419A311AD61143006EA906 /* SUStandardVersionComparator.m */,
+				FACF42321AD5CC100035E697 /* AutumnBoard.h */,
 				FAE4FAC01ACC886D003283C5 /* AutumnBoard.m */,
 				FA46A74E1AD0446000739C3B /* ABLogging.h */,
 				FA46A74C1AD0440F00739C3B /* ABBinding.h */,
@@ -159,6 +166,7 @@
 				FA46A7541AD0480100739C3B /* ABBindingManager.m in Sources */,
 				FA46A7571AD050BA00739C3B /* ABResourceRouter.m in Sources */,
 				FA46A7511AD047D400739C3B /* ABResourceThemer.m in Sources */,
+				FA419A321AD61143006EA906 /* SUStandardVersionComparator.m in Sources */,
 				FA46A74D1AD0440F00739C3B /* ABBinding.m in Sources */,
 				FAE4FAC11ACC886D003283C5 /* AutumnBoard.m in Sources */,
 			);
