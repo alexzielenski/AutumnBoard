@@ -45,6 +45,10 @@ static struct _ABPropertyOffsets {
     // Volumes
     UInt64 volumeIconBundleIdentifier;
     UInt64 volumeIconResourceName;
+    
+    // IconResource
+    UInt64 iconResourceURL;
+    UInt64 iconResourceFlags;
 } ABBindingPropertyOffsets;
 
 static struct _ABBindingMethods {
@@ -60,8 +64,31 @@ static struct _ABBindingMethods {
     OSErr (*resolveBinding)(void *binding);
 } ABBindingMethods;
 
+//OSErr (*__LSGetBindingForTypeInfo)(void* context, OSType type, OSType creator, CFStringRef extension, UInt64 unk, LSRolesMask roles, int arg6, int arg7, int ar8, void **arg9);
+
+//!TODO: move this somewhere nice
+// This exists mostly for badge theming, but the various constructors if IconResource
+// make for interesting possibilities
+void (*IconResource)(void *, void *, UInt64);
+OPHook3(void, IconResource, void *, this, OSType, type, UInt64, flags) {
+    NSURL *custom = customIconForOSType(ABStringFromOSType(type));
+    if (!custom) {
+        OPOldCall(this, type, flags);
+        CFURLRef orig = ABIconResourceGetURL(this);
+        custom = replacementURLForURL((__bridge NSURL *)orig);
+    }
+    
+    if (custom) {
+        ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
+        ABIconResourceSetFlags(this, flags);
+    }
+}
+
 OPInitialize {
     void *image = OPGetImageByName("/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices");
+
+    IconResource = OPFindSymbol(image, "__ZN12IconResourceC2Ejy");
+    OPHookFunction(IconResource);
     
     ABBindingMethods.ReleaseBinding = OPFindSymbol(image, "__ZN14BindingManager7ReleaseEP7Bindingb");
     ABBindingMethods.RetainBinding  = OPFindSymbol(image, "__ZN14BindingManager6RetainEP7Bindingb");
@@ -119,7 +146,9 @@ OPInitialize {
             .bundleURL                  = 0x40,
             .fileInfoExtension          = 0x40,
             .volumeIconBundleIdentifier = 0x48,
-            .volumeIconResourceName     = 0x50
+            .volumeIconResourceName     = 0x50,
+            .iconResourceURL            = 0x0,
+            .iconResourceFlags          = 0x8
         };
         
         ABBindingPropertyOffsets = offs;
@@ -141,6 +170,12 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
     BOOL sidebar = ABBindingIsSidebarVariant(destination);
     NSURL *customURL = customIconForURL(url);
     
+//    ABLog("YO: %llx, %llx", ABBindingGetBadge(binding), ABFileInfoBindingGetFlags(binding));
+//    AdaptBindingForUsageFlags(&binding, ABBindingGetBadge(binding));
+//    if (destination != binding) {
+//        ABLogBinding(binding);
+//    }
+
     if (class == ABBindingClassLink && !customURL) {
         // Get the icon ref for the binding that this alias resolves to
         // because the OSType for a link is always 'alis'
@@ -185,7 +220,7 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
         class != ABBindingClassComposite &&
         class != ABBindingClassLink &&
         !customURL) {
-        
+
         // ABBindingCopyUTI doesnt follow the create rule despite its name
         NSString *uti = (__bridge NSString *)(ABBindingCopyUTI(destination));
         // A dynamic UTI is no UTI at all (dynamic utis are generated based on the extension/ostype)
@@ -258,6 +293,7 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
             // But you directly set the icon on some badged icons
             // the badge wouldn't show but overriding it will work.
             if (ABBindingGetBadge(destination) == 0 &&
+                ABBindingGetBindingClass(binding) != ABBindingClassLink &&
                 (class == ABBindingClassFileInfo ||
                 class == ABBindingClassUTI ||
                 class == ABBindingClassVolume)) {
@@ -437,6 +473,27 @@ NSString *ABBindingCopyDescription(ABBindingRef binding) {
     return (__bridge_transfer NSString *)getDesc(binding);
 }
 
+#pragma mark - Icon Resource
+                      
+CFURLRef ABIconResourceGetURL(IconResourceRef resource) {
+    return *(CFURLRef *)((uint8_t *)resource + ABBindingPropertyOffsets.iconResourceURL);
+}
+
+void ABIconResourceSetURL(IconResourceRef resource, CFURLRef url) {
+    CFURLRef orig = ABIconResourceGetURL(resource);
+    if (orig)
+        CFRelease(orig);
+    *(CFURLRef *)((uint8_t *)resource + ABBindingPropertyOffsets.iconResourceURL) = CFRetain(url);
+}
+
+UInt64 ABIconResourceGetFlags(IconResourceRef resource) {
+    return *(UInt64 *)((uint8_t *)resource + ABBindingPropertyOffsets.iconResourceFlags);
+}
+
+void ABIconResourceSetFlags(IconResourceRef resource, UInt64 flags) {
+    *(UInt64 *)((uint8_t *)resource + ABBindingPropertyOffsets.iconResourceFlags) = flags;
+}
+                      
 NSString *ABStringFromOSType(OSType type) {
     return (__bridge_transfer NSString *)UTCreateStringForOSType(type);
 }

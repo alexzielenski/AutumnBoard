@@ -13,6 +13,7 @@
 #import <Foundation/Foundation.h>
 
 typedef void *ABBindingRef;
+typedef void *IconResourceRef;
 
 typedef NS_ENUM(NSUInteger, ABBindingClass) {
     ABBindingClassFileInfo  = 1,
@@ -57,5 +58,9 @@ ABBindingRef ABVariantBindingGetBinding(ABBindingRef binding);
 ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding);
 ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding);
 
+CFURLRef ABIconResourceGetURL(IconResourceRef resource);
+void ABIconResourceSetURL(IconResourceRef resource, CFURLRef url);
+UInt64 ABIconResourceGetFlags(IconResourceRef resource);
+void ABIconResourceSetFlags(IconResourceRef resource, UInt64 flags);
 
 #endif /* defined(__AutumnBoard__ABBinding__) */
