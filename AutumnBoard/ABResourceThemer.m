@@ -103,7 +103,7 @@ static NSDictionary *typeIndexForBundle(NSBundle *bundle) {
             entry = [NSMutableDictionary dictionary];
             entry[ABTypeIndexUTIsKey]       = [NSMutableArray array];
             entry[ABTypeIndexExtensionsKey] = [NSMutableArray array];
-            entry[ABTypeIndexMIMEsKey]      = [NSMutableArray array];
+//            entry[ABTypeIndexMIMEsKey]      = [NSMutableArray array];
             entry[ABTypeIndexOSTypesKey]    = [NSMutableArray array];
 
             index[icon] = entry;
@@ -112,8 +112,39 @@ static NSDictionary *typeIndexForBundle(NSBundle *bundle) {
         // We need to do this incase the app uses the same icon for different document types
         [(NSMutableArray *)entry[ABTypeIndexUTIsKey] addObjectsFromArray:type[@"LSItemContentTypes"]];
         [(NSMutableArray *)entry[ABTypeIndexExtensionsKey] addObjectsFromArray:type[@"CFBundleTypeExtensions"]];
-        [(NSMutableArray *)entry[ABTypeIndexMIMEsKey] addObjectsFromArray:type[@"CFBundleTypeMIMETypes"]];
+//        [(NSMutableArray *)entry[ABTypeIndexMIMEsKey] addObjectsFromArray:type[@"CFBundleTypeMIMETypes"]];
         [(NSMutableArray *)entry[ABTypeIndexOSTypesKey] addObjectsFromArray:type[@"CFBundleTypeOSTypes"]];
+    }
+    
+    types = info[@"UTExportedTypeDeclarations"];
+    for (NSDictionary *type in types) {
+        NSString *icon = type[@"UTTypeIconFile"];
+        if (!icon)
+            continue;
+        
+        NSMutableDictionary *entry = (NSMutableDictionary *)index[icon];
+        if (!entry) {
+            entry = [NSMutableDictionary dictionary];
+            entry[ABTypeIndexUTIsKey]       = [NSMutableArray array];
+            entry[ABTypeIndexExtensionsKey] = [NSMutableArray array];
+            //            entry[ABTypeIndexMIMEsKey]      = [NSMutableArray array];
+            entry[ABTypeIndexOSTypesKey]    = [NSMutableArray array];
+            
+            index[icon] = entry;
+        }
+        
+        NSString *uti = type[@"UTTypeIdentifier"];
+        NSDictionary *spec = type[@"UTTypeTagSpecification"];
+        id exts = spec[@"public.filename-extension"] ?: @[];
+        id ostypes = spec[@"com.apple.ostype"] ?: @[];
+        if (![exts isKindOfClass:[NSArray class]])
+            exts = @[exts];
+        if (![ostypes isKindOfClass:[NSArray class]])
+            ostypes = @[ostypes];
+        
+        [(NSMutableArray *)entry[ABTypeIndexUTIsKey] addObject: uti];
+        [(NSMutableArray *)entry[ABTypeIndexExtensionsKey] addObjectsFromArray:exts];
+        [(NSMutableArray *)entry[ABTypeIndexOSTypesKey] addObjectsFromArray:ostypes];
     }
     
     cache[bundle.bundleIdentifier] = index;

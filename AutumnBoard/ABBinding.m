@@ -166,6 +166,12 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
         if (identifier.length && imageName.length) {
             NSBundle *bndl = [NSBundle bundleWithIdentifier:identifier];
             customURL = replacementURLForURLRelativeToBundle([bndl.resourceURL URLByAppendingPathComponent:imageName], bndl);
+            
+            if (!customURL) {
+                // Try it on the coretypes bundle since media icons are defined there for some reason
+                bndl = [NSBundle bundleWithIdentifier:@"com.apple.coretypes"];
+                customURL = replacementURLForURLRelativeToBundle([bndl.resourceURL URLByAppendingPathComponent:imageName], bndl);
+            }
         }
     }
     
