@@ -38,7 +38,9 @@ ZKSwizzleInterface($_ZABSidebarImage, NSSidebarImage, NSImage)
 
 #pragma mark - Initialize
 OPInitialize {
-    ABLog("AutumnBoard Loaded");    
+#ifdef DEBUG
+    ABLog("AutumnBoard Loaded");
+#endif
 }
 
 #pragma mark - Support
