@@ -111,7 +111,7 @@ OPHook2(ABBindingRef, CreateWithSideFaultFile, CFURLRef, url, BOOL, flag) {
 //}
 
 OPInitialize {
-    if (!ABIsSupportedVersion())
+    if (!ABIsSupportedVersion() || ABIsInQuickLook())
         return;
     
     void *image = OPGetImageByName("/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices");

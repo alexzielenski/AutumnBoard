@@ -18,5 +18,6 @@ NSString *ABLaunchServicesVersion();
 BOOL ABLaunchServicesVersionInRange(NSString *lower, NSString *upper); // inclusive
 BOOL ABLaunchServicesVersionEquals(NSString *version);
 BOOL ABIsSupportedVersion();
+BOOL ABIsInQuickLook();
 
 #endif

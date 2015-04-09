@@ -80,3 +80,8 @@ BOOL ABIsSupportedVersion() {
     });
     return supported;
 }
+
+BOOL ABIsInQuickLook() {
+    NSString *name = [[NSProcessInfo processInfo] processName];
+    return [name isEqualToString:@"quicklookd"] || [name isEqualToString:@"QuickLookSatellite"];
+}
