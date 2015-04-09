@@ -169,12 +169,6 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
     
     BOOL sidebar = ABBindingIsSidebarVariant(destination);
     NSURL *customURL = customIconForURL(url);
-    
-//    ABLog("YO: %llx, %llx", ABBindingGetBadge(binding), ABFileInfoBindingGetFlags(binding));
-//    AdaptBindingForUsageFlags(&binding, ABBindingGetBadge(binding));
-//    if (destination != binding) {
-//        ABLogBinding(binding);
-//    }
 
     if (class == ABBindingClassLink && !customURL) {
         // Get the icon ref for the binding that this alias resolves to
