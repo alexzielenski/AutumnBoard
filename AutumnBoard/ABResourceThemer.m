@@ -27,6 +27,10 @@ OPInitialize {
     ThemePath = [NSURL fileURLWithPath:@"/Library/AutumnBoard/Themes/Fladder2"];
 }
 
+BOOL ABURLInThemesDirectory(NSURL *url) {
+    return [url.path hasPrefix:ThemePath.path];
+}
+
 #pragma mark - URL Generation
 
 static NSURL *URLForBundle(NSBundle *bundle) {
@@ -221,9 +225,16 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
             return iconURL;
         }
     }
+    testURL = URLForBundle(bndl);
+    for (NSUInteger x =  rsrcIdx + 1; x < urlComponents.count; x++) {
+        testURL = [[testURL URLByAppendingPathComponent:urlComponents[x]] URLByResolvingSymlinksInPath];
+    }
+    
+    if ([manager fileExistsAtPath:testURL.path])
+        return testURL;
     
     // Search the bundle's declared types to see if the resource we are looking for
-    // is actually an app icon
+    // is actually an document icon
     NSDictionary *index = typeIndexForBundle(bndl);
     if (index.count) {
         NSDictionary *entry = index[lastObject] ?: index[lastObject.stringByDeletingPathExtension];
@@ -252,15 +263,6 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
         }
     }
 
-    
-    testURL = URLForBundle(bndl);
-    for (NSUInteger x =  rsrcIdx + 1; x < urlComponents.count; x++) {
-        testURL = [[testURL URLByAppendingPathComponent:urlComponents[x]] URLByResolvingSymlinksInPath];
-    }
-    
-    if ([manager fileExistsAtPath:testURL.path])
-        return testURL;
-    
     return nil;
 }
 

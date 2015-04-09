@@ -20,4 +20,6 @@ NSURL *customIconForOSType(NSString *type);
 NSURL *customIconForUTI(NSString *uti);
 NSURL *customIconForExtension(NSString *extension);
 
+BOOL ABURLInThemesDirectory(NSURL *url);
+
 #endif /* defined(__AutumnBoard__ABResourceThemer__) */
