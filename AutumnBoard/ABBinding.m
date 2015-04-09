@@ -85,7 +85,7 @@ OPInitialize {
 
     // Lookup offsets to get the instance methods for each binding class
     // and assign the relative one to our struct
-    void **bindingVtable = OPFindSymbol(NULL, "__ZTV15FileInfoBinding");
+    void **bindingVtable = OPFindSymbol(image, "__ZTV15FileInfoBinding");
     
     // vtables begin starting with two zeroes so stop when we find those
     // or if thats not the case we can reasonably limit to searching 64 entries
