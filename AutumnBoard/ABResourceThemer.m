@@ -235,30 +235,32 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
     
     // Search the bundle's declared types to see if the resource we are looking for
     // is actually an document icon
-    NSDictionary *index = typeIndexForBundle(bndl);
-    if (index.count) {
-        NSDictionary *entry = index[lastObject] ?: index[lastObject.stringByDeletingPathExtension];
-        
-        if (entry) {
-            NSArray *utis = entry[ABTypeIndexUTIsKey];
-            for (NSString *uti in utis) {
-                NSURL *url = customIconForUTI(uti);
-                if (url)
-                    return url;
-            }
+    if ([url.pathExtension.lowercaseString isEqualToString:@"icns"]) {
+        NSDictionary *index = typeIndexForBundle(bndl);
+        if (index.count) {
+            NSDictionary *entry = index[lastObject] ?: index[lastObject.stringByDeletingPathExtension];
             
-            NSArray *extensions = entry[ABTypeIndexExtensionsKey];
-            for (NSString *ext in extensions) {
-                NSURL *url = customIconForExtension(ext);
-                if (url)
-                    return url;
-            }
-            
-            NSArray *ostypes = entry[ABTypeIndexOSTypesKey];
-            for (NSString *ostype in ostypes) {
-                NSURL *url = customIconForOSType(ostype);
-                if (url)
-                    return url;
+            if (entry) {
+                NSArray *utis = entry[ABTypeIndexUTIsKey];
+                for (NSString *uti in utis) {
+                    NSURL *url = customIconForUTI(uti);
+                    if (url)
+                        return url;
+                }
+                
+                NSArray *extensions = entry[ABTypeIndexExtensionsKey];
+                for (NSString *ext in extensions) {
+                    NSURL *url = customIconForExtension(ext);
+                    if (url)
+                        return url;
+                }
+                
+                NSArray *ostypes = entry[ABTypeIndexOSTypesKey];
+                for (NSString *ostype in ostypes) {
+                    NSURL *url = customIconForOSType(ostype);
+                    if (url)
+                        return url;
+                }
             }
         }
     }
