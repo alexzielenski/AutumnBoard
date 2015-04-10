@@ -275,7 +275,7 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
 }
 
 NSURL *replacementURLForURL(NSURL *url) {
-    if (!url || !url.isFileURL)
+    if (!url || !url.isFileURL || ABURLInThemesDirectory(url))
         return nil;
     // traverse down path until we get a bundle with an identifier
     BOOL foundBundle = NO;
