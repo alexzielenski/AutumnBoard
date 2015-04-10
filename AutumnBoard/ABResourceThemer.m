@@ -242,7 +242,12 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
     // Search the bundle's declared types to see if the resource we are looking for
     // is actually an document icon
     if ([url.pathExtension.lowercaseString isEqualToString:@"icns"]) {
-        NSDictionary *index = typeIndexForBundle(bndl);
+        NSBundle *indexBundle = bndl;
+        if ([indexBundle.bundleIdentifier hasPrefix:@"com.apple.iokit"]) {
+            indexBundle = [NSBundle bundleWithIdentifier:@"com.apple.coretypes"];
+        }
+        
+        NSDictionary *index = typeIndexForBundle(indexBundle);
         if (index.count) {
             NSDictionary *entry = index[lastObject] ?: index[lastObject.stringByDeletingPathExtension];
             
