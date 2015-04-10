@@ -92,7 +92,6 @@ OPHook4(void, IconResourceWithBundle, void *, this, CFURLRef, url, CFStringRef, 
         ABIconResourceSetFlags(this, flags);
         ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
     } else {
-        ABLog("RESOURCEWITHBUNDLE: %@ %@ %llx", url, name, flags);
         OPOldCall(this, url, name, flags);
     }
 }
@@ -100,7 +99,6 @@ OPHook4(void, IconResourceWithBundle, void *, this, CFURLRef, url, CFStringRef, 
 void (*IconResourceWithURL)(void *, CFURLRef, UInt64);
 OPHook3(void, IconResourceWithURL, void *, this, CFURLRef, url, UInt64, flags) {
     NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
-    ABLog("RESOURCEWITHURL: %@ %llx", url, flags);
     if (replacement)
         url = (__bridge CFURLRef)replacement;
     OPOldCall(this, url, flags);
@@ -108,15 +106,18 @@ OPHook3(void, IconResourceWithURL, void *, this, CFURLRef, url, UInt64, flags) {
 
 void (*IconResourceWithFileInfo)(void *, CFStringRef, CFStringRef, UInt64);
 OPHook4(void, IconResourceWithFileInfo, void *, this, CFStringRef, uti, CFStringRef, conformance, UInt64, flags) {
-    ABLog("RESOURCEWITHFILEINFO: %@ %@", uti, conformance);
     OPOldCall(this, uti, conformance, flags);
+    
+    NSURL *custom = replacementURLForURL((__bridge NSURL *)ABIconResourceGetURL(this));
+    if (custom) {
+        ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
+    }
 }
 
 void (*IconResourceWithBinding)(void *, void *, void *, UInt64);
 OPHook4(void, IconResourceWithBinding, void *, this, void *, context, void **, binding, UInt64, flags) {
     OPOldCall(this, context, binding, flags);
     
-    ABLog("RESOURCEWITHBINDING: %@", ABIconResourceGetURL(this));
     NSURL *custom = replacementURLForURL((__bridge NSURL *)ABIconResourceGetURL(this));
     if (custom) {
         ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
