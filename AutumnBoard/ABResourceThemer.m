@@ -183,23 +183,14 @@ NSURL *iconForBundle(NSBundle *bundle) {
     }
     
     NSString *iconName = nameOfIconForBundle(bundle);
-    // This bundle has no icon, return our generic one
-    //!TODO: Decide if this is still necessary with UTICopyIconFilename
-    //! this functionality is unnecessary for me but I'm not sure if its just because
-    //! i'm injecting into the iconservicesagent root process
-    if (!iconName || iconName.length == 0) {
-        //!TODO: Even if there is an icon name, check to see if it exists
-        if (bundle.infoDictionary.count && bundle.bundlePath.pathExtension.length)
-            return customIconForExtension(bundle.bundlePath.pathExtension);
+    if (!iconName)
         return nil;
-    }
     
     if (!iconName.pathExtension)
         iconName = [iconName stringByAppendingPathExtension:@"icns"];
     
     NSURL *iconURL = [bundle.resourceURL URLByAppendingPathComponent:iconName];
-    NSURL *replacement = customIconForURL(iconURL) ?: replacementURLForURLRelativeToBundle(iconURL, bundle);
-    return replacement;
+    return replacementURLForURLRelativeToBundle(iconURL, bundle);
 }
 
 #pragma mark - Absolute Path Helpers
@@ -239,6 +230,7 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
     
     if ([manager fileExistsAtPath:testURL.path])
         return testURL;
+    
     
     // Search the bundle's declared types to see if the resource we are looking for
     // is actually an document icon
