@@ -277,6 +277,13 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
 NSURL *replacementURLForURL(NSURL *url) {
     if (!url || !url.isFileURL || ABURLInThemesDirectory(url))
         return nil;
+    
+    if (url.baseURL) {
+        NSBundle *bndl = [NSBundle bundleWithURL:url.baseURL];
+        if (bndl.bundleIdentifier)
+            return replacementURLForURLRelativeToBundle(url, bndl);
+    }
+    
     // traverse down path until we get a bundle with an identifier
     BOOL foundBundle = NO;
     NSBundle *bndl = nil;
