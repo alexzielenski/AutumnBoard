@@ -213,7 +213,7 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
     if (testURL)
         return testURL;
 
-    NSArray *urlComponents = [url.path stringByReplacingOccurrencesOfString:bndl.bundlePath withString:@""].pathComponents;
+    NSArray *urlComponents = [url.path substringFromIndex:bndl.bundlePath.length].pathComponents;
     NSUInteger rsrcIdx = [urlComponents indexOfObject:@"Resources"];
     if (rsrcIdx == NSNotFound)
         return nil;
