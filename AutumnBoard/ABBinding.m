@@ -106,9 +106,16 @@ OPHook3(void, IconResourceWithURL, void *, this, CFURLRef, url, UInt64, flags) {
 
 void (*IconResourceWithFileInfo)(void *, CFStringRef, CFStringRef, UInt64);
 OPHook4(void, IconResourceWithFileInfo, void *, this, CFStringRef, uti, CFStringRef, conformance, UInt64, flags) {
+    NSURL *custom = customIconForUTI((__bridge NSString *)uti);
+    if (custom) {
+        ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
+        ABIconResourceSetFlags(this, flags);
+        return;
+    }
+    
     OPOldCall(this, uti, conformance, flags);
     
-    NSURL *custom = replacementURLForURL((__bridge NSURL *)ABIconResourceGetURL(this));
+    custom = replacementURLForURL((__bridge NSURL *)ABIconResourceGetURL(this));
     if (custom) {
         ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
     }
