@@ -206,7 +206,7 @@ NSURL *iconForBundle(NSBundle *bundle) {
 #pragma mark - Absolute Path Helpers
 
 NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
-    if (!url || !url.isFileURL || !bndl.bundleIdentifier)
+    if (!url || !url.isFileURL || !bndl.bundleIdentifier || ABURLInThemesDirectory(url))
         return nil;
     
     // Step 1, check absolute paths
