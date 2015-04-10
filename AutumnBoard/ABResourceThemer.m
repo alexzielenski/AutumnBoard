@@ -75,6 +75,8 @@ NSURL *URLForAbsolutePath(NSURL *path) {
     NSString *name = [path.path stringByAbbreviatingWithTildeInPath];
     if (![name.pathExtension isEqualToString:@"icns"])
         name = [name stringByAppendingPathExtension:@"icns"];
+    if (!name)
+        return nil;
     
     return [[[ThemePath URLByAppendingPathComponent:@"Absolutes"] URLByAppendingPathComponent:name] URLByResolvingSymlinksInPath];
 }
@@ -117,10 +119,14 @@ static NSDictionary *typeIndexForBundle(NSBundle *bundle) {
 
             index[icon] = entry;
         }
+        NSString *icext = type[@"ICExtension"];
+        NSArray *exts = type[@"CFBundleTypeExtensions"];
+        if (!exts && icext)
+            exts = @[icext];
         
         // We need to do this incase the app uses the same icon for different document types
         [(NSMutableArray *)entry[ABTypeIndexUTIsKey] addObjectsFromArray:type[@"LSItemContentTypes"]];
-        [(NSMutableArray *)entry[ABTypeIndexExtensionsKey] addObjectsFromArray:type[@"CFBundleTypeExtensions"]];
+        [(NSMutableArray *)entry[ABTypeIndexExtensionsKey] addObjectsFromArray:exts];
 //        [(NSMutableArray *)entry[ABTypeIndexMIMEsKey] addObjectsFromArray:type[@"CFBundleTypeMIMETypes"]];
         [(NSMutableArray *)entry[ABTypeIndexOSTypesKey] addObjectsFromArray:type[@"CFBundleTypeOSTypes"]];
     }
