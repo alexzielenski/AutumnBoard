@@ -97,9 +97,44 @@ OPHook4(void, IconResourceWithBundle, void *, this, CFURLRef, url, CFStringRef, 
     }
 }
 
+void (*IconResourceWithURL)(void *, CFURLRef, UInt64);
+OPHook3(void, IconResourceWithURL, void *, this, CFURLRef, url, UInt64, flags) {
+    NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
+    ABLog("RESOURCEWITHURL: %@ %llx", url, flags);
+    if (replacement)
+        url = (__bridge CFURLRef)replacement;
+    OPOldCall(this, url, flags);
+}
+
+void (*IconResourceWithFileInfo)(void *, CFStringRef, CFStringRef, UInt64);
+OPHook4(void, IconResourceWithFileInfo, void *, this, CFStringRef, uti, CFStringRef, conformance, UInt64, flags) {
+    ABLog("RESOURCEWITHFILEINFO: %@ %@", uti, conformance);
+    OPOldCall(this, uti, conformance, flags);
+}
+
+void (*IconResourceWithBinding)(void *, void *, void *, UInt64);
+OPHook4(void, IconResourceWithBinding, void *, this, void *, context, void **, binding, UInt64, flags) {
+    OPOldCall(this, context, binding, flags);
+    
+    ABLog("RESOURCEWITHBINDING: %@", ABIconResourceGetURL(this));
+    NSURL *custom = replacementURLForURL((__bridge NSURL *)ABIconResourceGetURL(this));
+    if (custom) {
+        ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
+    }
+}
+
 OPInitialize {
     void *image = OPGetImageByName("/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices");
-
+    
+    IconResourceWithBinding = OPFindSymbol(image, "__ZN12IconResource10initializeEP9LSContextP9LSBindingy");
+    OPHookFunction(IconResourceWithBinding);
+    
+    IconResourceWithFileInfo = OPFindSymbol(image, "__ZN12IconResourceC1EPK10__CFStringS2_y");
+    OPHookFunction(IconResourceWithFileInfo);
+    
+    IconResourceWithURL = OPFindSymbol(image, "__ZN12IconResourceC1EPKvy");
+    OPHookFunction(IconResourceWithURL);
+    
     IconResourceWithBundle = OPFindSymbol(image, "__ZN12IconResourceC2EPK7__CFURLPK10__CFStringyy");
     OPHookFunction(IconResourceWithBundle);
     
@@ -171,19 +206,11 @@ OPInitialize {
     }
 }
 
-// OSType, EXT, UTI, FLAGS
-static uint32_t (*GetSidebarVariantType)(OSType type, CFStringRef extension, CFStringRef uti, UInt64 flags);
+// We sitll need this functionality for absolutes to work
 void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
-    if (GetSidebarVariantType == NULL) {
-        GetSidebarVariantType = OPFindSymbol(NULL, "__Z21GetSidebarVariantTypejPK10__CFStringS1_y");
-    }
-    // We don't want to do this for the bundle binding because they have a different
-    // source of icons (they are covered in the nameOfIconFile and customIconForURL)
-    // if their icons don't exist
     ABBindingClass class = ABBindingGetBindingClass(binding);
     void *destination = binding;
     
-    BOOL sidebar = ABBindingIsSidebarVariant(destination);
     NSURL *customURL = customIconForURL(url);
 
     if (class == ABBindingClassLink && !customURL) {
@@ -191,103 +218,6 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
         // because the OSType for a link is always 'alis'
         destination = ABLinkBindingResolve(destination);
         class = ABBindingGetBindingClass(destination);
-    }
-    
-    // try first to get an icon for the bundle
-    // the iconForBundle function handles the case where
-    // the bundle has no specified icon file and therefore fills
-    // it in with the appropriate icon for its ostype
-    if (class == ABBindingClassBundle) {
-        return binding;
-        
-    // VolumeBindings store the identifier for the bundle that the image name will be found in
-    // so to support theming of default volume icons we can cheat by taking those and calling our
-    // hook of CFBundleCopyResourceURL
-    } else if (class == ABBindingClassVolume && !customURL) {
-        NSString *identifier = (__bridge NSString *)(ABVolumeBindingGetBundleIdentifier(destination));
-        NSString *imageName = (__bridge NSString *)(ABVolumeBindingGetBundleIconResourceName(destination));
-        if (identifier.length && imageName.length) {
-            NSBundle *bndl = [NSBundle bundleWithIdentifier:identifier];
-            customURL = replacementURLForURLRelativeToBundle([bndl.resourceURL URLByAppendingPathComponent:imageName], bndl);
-            
-            if (!customURL) {
-                // Try it on the coretypes bundle since media icons are defined there for some reason
-                bndl = [NSBundle bundleWithIdentifier:@"com.apple.coretypes"];
-                customURL = replacementURLForURLRelativeToBundle([bndl.resourceURL URLByAppendingPathComponent:imageName], bndl);
-            }
-        }
-    }
-    
-    // Dont fuck with custom icons
-    // Dont fuck with bundles
-    // I don't know what a SideFault file is – maybe an iCloud document?
-    // Composites are handled recursively at the bottom of this method
-    if (class != ABBindingClassBundle &&
-        class != ABBindingClassSideFault &&
-        class != ABBindingClassCustom &&
-        class != ABBindingClassComposite &&
-        class != ABBindingClassLink &&
-        !customURL) {
-
-        // ABBindingCopyUTI doesnt follow the create rule despite its name
-        NSString *uti = (__bridge NSString *)(ABBindingCopyUTI(destination));
-        // A dynamic UTI is no UTI at all (dynamic utis are generated based on the extension/ostype)
-        if (uti && UTTypeIsDynamic((__bridge CFStringRef)(uti)))
-            uti = nil;
-        
-        // see if we theme this UTI or any of its associated extensions/ostypes
-        customURL = customIconForUTI(uti);
-        
-        if (!customURL) {
-            // Get the UTI ourselves from the extension or something
-            NSString *ext = url.pathExtension ?: (__bridge NSString *)ABFileInfoBindingGetExtension(destination);
-            customURL = customIconForExtension(ext);
-        }
-        
-        if (!customURL || sidebar) {
-            OSType ostype = ABBindingGetOSType(destination);
-                        
-            if (sidebar) {
-                ostype = GetSidebarVariantType(ABBindingGetOSType(destination),
-                                               NULL,
-                                               ABBindingCopyUTI(destination),
-                                               ABFileInfoBindingGetFlags(destination));
-            }
-            
-            // Getting an OS Type off of the path for dirs breaks
-            // so use the folder OS Type if this is an unidentifiable directory
-            if ((ostype == 0 || ostype == '????') && url && !uti &&
-                class != ABBindingClassBundle &&
-                class != ABBindingClassVolume) {
-                
-                // Dont apply the generic folder icon to packages
-                // See if its a dir with a weird extension
-                // (folders like MYFOLDER.3 should get the generic icon but the 3 throws
-                // the OSType generator off so we have to hardcode it)
-                LSItemInfoRecord info;
-                NSURL *resolved = [NSURL URLByResolvingAliasFileAtURL:url
-                                                              options:NSURLBookmarkResolutionWithoutUI | NSURLBookmarkResolutionWithoutMounting
-                                                                error:nil] ?: url;
-                LSCopyItemInfoForURL((__bridge CFURLRef)resolved, kLSRequestBasicFlagsOnly, &info);
-                
-                // Packages get the little lego cube
-                if (info.flags & kLSItemInfoIsPackage)
-                    ostype = kGenericExtensionIcon;
-                // Folders get the generic folder
-                else if (info.flags & kLSItemInfoIsContainer)
-                    ostype = kGenericFolderIcon;
-                // Executables get the executable icon
-                else if (ABFileInfoBindingGetFlags(destination) == 1) // executable
-                    ostype = 'xTol';
-                // Otherwise try to use the LaunchServices ostype (which is likely still '????')
-                else
-                    ostype = info.filetype;
-            }
-            
-            if (ostype != 0 && ostype != '????')
-                customURL = customIconForOSType(ABStringFromOSType(ostype));
-        }
-        
     }
     
     if (customURL && class != ABBindingClassComposite) {

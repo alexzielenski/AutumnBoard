@@ -76,9 +76,6 @@ NSURL *URLForAbsolutePath(NSURL *path) {
 }
 
 #pragma mark - Bundle Helpers
-//!TODO: see if we should actually set up a daemon for this since it is quite expensive to do for every single application
-//!or maybe when the user applies the theme we could scan every single element in UTIs/OSTypes in general build this index
-//!at "compile" time and save it to the info.plist to make initial lookups faster
 static NSDictionary *typeIndexForBundle(NSBundle *bundle) {
     static NSMutableDictionary *cache = nil;
     static dispatch_once_t onceToken;
@@ -89,7 +86,11 @@ static NSDictionary *typeIndexForBundle(NSBundle *bundle) {
     if (!bundle.bundleIdentifier)
         return nil;
     
-    NSDictionary *cached = [cache objectForKey:bundle.bundleIdentifier];
+    //!TODO: Don't organize the index by bundle identifier
+    //! instead organize it by the absolute path to the icon
+    //! that way we don't have to do shit like this
+    NSString *identifier = bundle.bundleIdentifier;
+    NSDictionary *cached = [cache objectForKey:identifier];
     if (cached)
         return cached;
     
@@ -151,7 +152,7 @@ static NSDictionary *typeIndexForBundle(NSBundle *bundle) {
         [(NSMutableArray *)entry[ABTypeIndexOSTypesKey] addObjectsFromArray:ostypes];
     }
     
-    cache[bundle.bundleIdentifier] = index;
+    cache[identifier] = index;
     return index;
 }
 
