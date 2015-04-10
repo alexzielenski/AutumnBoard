@@ -169,6 +169,12 @@ static NSString *nameOfIconForBundle(NSBundle *bundle) {
 }
 
 NSURL *iconForBundle(NSBundle *bundle) {
+    // Check Absolute Path
+    NSURL *absolute = customIconForURL(bundle.bundleURL);
+    if (absolute) {
+        return absolute;
+    }
+    
     // Shortcut so you dont have to make a folder for each app to change its icon
     NSURL *bndlURL = [URLForBundle(bundle) URLByAppendingPathExtension:@"icns"];
     if (bndlURL && [[NSFileManager defaultManager] fileExistsAtPath:bndlURL.path]) {

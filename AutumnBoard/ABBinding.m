@@ -69,8 +69,8 @@ static struct _ABBindingMethods {
 //!TODO: move this somewhere nice
 // This exists mostly for badge theming, but the various constructors if IconResource
 // make for interesting possibilities
-void (*IconResource)(void *, void *, UInt64);
-OPHook3(void, IconResource, void *, this, OSType, type, UInt64, flags) {
+void (*IconResourceWithTypeInfo)(void *, void *, UInt64);
+OPHook3(void, IconResourceWithTypeInfo, void *, this, OSType, type, UInt64, flags) {
     NSURL *custom = customIconForOSType(ABStringFromOSType(type));
     if (!custom) {
         OPOldCall(this, type, flags);
@@ -84,11 +84,27 @@ OPHook3(void, IconResource, void *, this, OSType, type, UInt64, flags) {
     }
 }
 
+void (*IconResourceWithBundle)(void *, CFURLRef, CFStringRef, UInt64);
+OPHook4(void, IconResourceWithBundle, void *, this, CFURLRef, url, CFStringRef, name, UInt64, flags) {
+    NSBundle *bndl = [NSBundle bundleWithURL:(__bridge NSURL *)url];
+    NSURL *custom = iconForBundle(bndl);
+    if (custom) {
+        ABIconResourceSetFlags(this, flags);
+        ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
+    } else {
+        ABLog("RESOURCEWITHBUNDLE: %@ %@ %llx", url, name, flags);
+        OPOldCall(this, url, name, flags);
+    }
+}
+
 OPInitialize {
     void *image = OPGetImageByName("/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices");
 
-    IconResource = OPFindSymbol(image, "__ZN12IconResourceC2Ejy");
-    OPHookFunction(IconResource);
+    IconResourceWithBundle = OPFindSymbol(image, "__ZN12IconResourceC2EPK7__CFURLPK10__CFStringyy");
+    OPHookFunction(IconResourceWithBundle);
+    
+    IconResourceWithTypeInfo = OPFindSymbol(image, "__ZN12IconResourceC2Ejy");
+    OPHookFunction(IconResourceWithTypeInfo);
     
     ABBindingMethods.ReleaseBinding = OPFindSymbol(image, "__ZN14BindingManager7ReleaseEP7Bindingb");
     ABBindingMethods.RetainBinding  = OPFindSymbol(image, "__ZN14BindingManager6RetainEP7Bindingb");
@@ -181,10 +197,8 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
     // the iconForBundle function handles the case where
     // the bundle has no specified icon file and therefore fills
     // it in with the appropriate icon for its ostype
-    if (class == ABBindingClassBundle && !customURL) {
-        NSURL *bundleURL = (__bridge NSURL *)(ABBindingGetURL(destination));
-        if (bundleURL.isFileURL)
-            customURL = iconForBundle([NSBundle bundleWithURL:bundleURL]);
+    if (class == ABBindingClassBundle) {
+        return binding;
         
     // VolumeBindings store the identifier for the bundle that the image name will be found in
     // so to support theming of default volume icons we can cheat by taking those and calling our
