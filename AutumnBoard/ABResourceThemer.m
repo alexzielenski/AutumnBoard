@@ -72,13 +72,16 @@ NSURL *URLForExtension(NSString *name) {
 NSURL *URLForAbsolutePath(NSURL *path) {
     if (!path)
         return nil;
+    
     NSString *name = [path.path stringByAbbreviatingWithTildeInPath];
-    if (![name.pathExtension isEqualToString:@"icns"])
-        name = [name stringByAppendingPathExtension:@"icns"];
     if (!name)
         return nil;
     
-    return [[[ThemePath URLByAppendingPathComponent:@"Absolutes"] URLByAppendingPathComponent:name] URLByResolvingSymlinksInPath];
+    NSURL *url = [[ThemePath URLByAppendingPathComponent:@"Absolutes"] URLByAppendingPathComponent:name];
+    if (![url.pathExtension isEqualToString:@"icns"])
+        url = [url URLByAppendingPathExtension:@"icns"];
+    
+    return [url URLByResolvingSymlinksInPath];
 }
 
 #pragma mark - Bundle Helpers
@@ -216,6 +219,7 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
         return testURL;
 
     NSArray *urlComponents = [url.path substringFromIndex:bndl.bundlePath.length].pathComponents;
+    //!TODO: get the last index of
     NSUInteger rsrcIdx = [urlComponents indexOfObject:@"Resources"];
     if (rsrcIdx == NSNotFound)
         return nil;
