@@ -72,7 +72,11 @@ NSURL *URLForExtension(NSString *name) {
 NSURL *URLForAbsolutePath(NSURL *path) {
     if (!path)
         return nil;
-    return [[[[ThemePath URLByAppendingPathComponent:@"Absolutes"] URLByAppendingPathComponent:[path.path stringByAbbreviatingWithTildeInPath]] URLByAppendingPathExtension:@"icns"] URLByResolvingSymlinksInPath];
+    NSString *name = [path.path stringByAbbreviatingWithTildeInPath];
+    if (![name.pathExtension isEqualToString:@"icns"])
+        name = [name stringByAppendingPathExtension:@"icns"];
+    
+    return [[[ThemePath URLByAppendingPathComponent:@"Absolutes"] URLByAppendingPathComponent:name] URLByResolvingSymlinksInPath];
 }
 
 #pragma mark - Bundle Helpers
