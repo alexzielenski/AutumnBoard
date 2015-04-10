@@ -238,6 +238,27 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
         class = ABBindingGetBindingClass(destination);
     }
     
+    // Our IconResource method wont work for this extensions if its extension/ostype is unknown
+    // Since we get the original icon and step backward. We can find by extension this way
+    // before it gets to the point
+    if (!customURL && class == ABBindingClassFileInfo) {
+        // probably unecessary
+        NSString *uti = (__bridge_transfer NSString *)ABBindingCopyUTI(destination);
+        customURL = customIconForUTI(uti);
+        
+        // very necessary
+        if (!customURL) {
+            NSString *ext = (__bridge NSString *)ABFileInfoBindingGetExtension(destination);
+            customURL = customIconForExtension(ext);
+        }
+        
+        if (!customURL) {
+            OSType type = ABBindingGetOSType(destination);
+            if (type != 0 && type != '????')
+                customURL = customIconForOSType(ABStringFromOSType(type));
+        }
+    }
+    
     if (customURL && class != ABBindingClassComposite) {
         customURL = [NSURL URLByResolvingAliasFileAtURL:customURL options:NSURLBookmarkResolutionWithoutUI error:nil] ?: customURL;
 
