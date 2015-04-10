@@ -71,53 +71,60 @@ static struct _ABBindingMethods {
 // make for interesting possibilities
 void (*IconResourceWithTypeInfo)(void *, void *, UInt64);
 OPHook3(void, IconResourceWithTypeInfo, void *, this, OSType, type, UInt64, flags) {
+    OPOldCall(this, type, flags);
+
     NSURL *custom = customIconForOSType(ABStringFromOSType(type));
     if (!custom) {
-        OPOldCall(this, type, flags);
         CFURLRef orig = ABIconResourceGetURL(this);
         custom = replacementURLForURL((__bridge NSURL *)orig);
     }
     
     if (custom) {
-        ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
+        ABIconResourceSetURL(this, custom);
         ABIconResourceSetFlags(this, flags);
     }
 }
 
 void (*IconResourceWithBundle)(void *, CFURLRef, CFStringRef, UInt64);
 OPHook4(void, IconResourceWithBundle, void *, this, CFURLRef, url, CFStringRef, name, UInt64, flags) {
-    NSBundle *bndl = [NSBundle bundleWithURL:(__bridge NSURL *)url];
+    OPOldCall(this, url, name, flags);
+
+    NSBundle *bndl = [NSBundle bundleWithURL:((__bridge NSURL *)url)];
     NSURL *custom = iconForBundle(bndl);
-    if (custom) {
+    
+    if (custom != nil) {
         ABIconResourceSetFlags(this, flags);
-        ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
-    } else {
-        OPOldCall(this, url, name, flags);
+        ABIconResourceSetURL(this, custom);
     }
 }
 
 void (*IconResourceWithURL)(void *, CFURLRef, UInt64);
 OPHook3(void, IconResourceWithURL, void *, this, CFURLRef, url, UInt64, flags) {
-    NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
-    if (replacement)
-        url = (__bridge CFURLRef)replacement;
+    if ([(__bridge NSURL *)url isKindOfClass:[NSURL class]]) {
+        NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
+        if (replacement)
+            url = (__bridge CFURLRef)replacement;
+    } else {
+        ABLog("RESOURCEWITHURL: %@", url);
+    }
+    
     OPOldCall(this, url, flags);
 }
 
 void (*IconResourceWithFileInfo)(void *, CFStringRef, CFStringRef, UInt64);
 OPHook4(void, IconResourceWithFileInfo, void *, this, CFStringRef, uti, CFStringRef, conformance, UInt64, flags) {
+    OPOldCall(this, uti, conformance, flags);
+
     NSURL *custom = customIconForUTI((__bridge NSString *)uti);
     if (custom) {
-        ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
+        ABIconResourceSetURL(this, custom);
         ABIconResourceSetFlags(this, flags);
         return;
     }
     
-    OPOldCall(this, uti, conformance, flags);
-    
     custom = replacementURLForURL((__bridge NSURL *)ABIconResourceGetURL(this));
     if (custom) {
-        ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
+        ABIconResourceSetURL(this, custom);
     }
 }
 
@@ -127,11 +134,14 @@ OPHook4(void, IconResourceWithBinding, void *, this, void *, context, void **, b
     
     NSURL *custom = replacementURLForURL((__bridge NSURL *)ABIconResourceGetURL(this));
     if (custom) {
-        ABIconResourceSetURL(this, (__bridge CFURLRef)custom);
+        ABIconResourceSetURL(this, custom);
     }
 }
 
 OPInitialize {
+    if (ABIsInQuickLook())
+        return;
+    
     void *image = OPGetImageByName("/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices");
     
     IconResourceWithBinding = OPFindSymbol(image, "__ZN12IconResource10initializeEP9LSContextP9LSBindingy");
@@ -422,21 +432,30 @@ NSString *ABBindingCopyDescription(ABBindingRef binding) {
 #pragma mark - Icon Resource
                       
 CFURLRef ABIconResourceGetURL(IconResourceRef resource) {
+    if (resource == NULL)
+        return NULL;
     return *(CFURLRef *)((uint8_t *)resource + ABBindingPropertyOffsets.iconResourceURL);
 }
 
-void ABIconResourceSetURL(IconResourceRef resource, CFURLRef url) {
+void ABIconResourceSetURL(IconResourceRef resource, NSURL *url) {
+    if (resource == NULL)
+        return;
+    
     CFURLRef orig = ABIconResourceGetURL(resource);
     if (orig)
         CFRelease(orig);
-    *(CFURLRef *)((uint8_t *)resource + ABBindingPropertyOffsets.iconResourceURL) = CFRetain(url);
+    *(CFURLRef *)((uint8_t *)resource + ABBindingPropertyOffsets.iconResourceURL) = (__bridge_retained CFURLRef)url.copy;
 }
 
 UInt64 ABIconResourceGetFlags(IconResourceRef resource) {
+    if (resource == NULL)
+        return 0;
     return *(UInt64 *)((uint8_t *)resource + ABBindingPropertyOffsets.iconResourceFlags);
 }
 
 void ABIconResourceSetFlags(IconResourceRef resource, UInt64 flags) {
+    if (resource == NULL)
+        return;
     *(UInt64 *)((uint8_t *)resource + ABBindingPropertyOffsets.iconResourceFlags) = flags;
 }
                       

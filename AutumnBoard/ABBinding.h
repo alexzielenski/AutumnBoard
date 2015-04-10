@@ -59,7 +59,7 @@ ABBindingRef ABCompositeBindingGetForegroundBinding(ABBindingRef binding);
 ABBindingRef ABCompositeBindingGetBackgroundBinding(ABBindingRef binding);
 
 CFURLRef ABIconResourceGetURL(IconResourceRef resource);
-void ABIconResourceSetURL(IconResourceRef resource, CFURLRef url);
+void ABIconResourceSetURL(IconResourceRef resource, NSURL *url);
 UInt64 ABIconResourceGetFlags(IconResourceRef resource);
 void ABIconResourceSetFlags(IconResourceRef resource, UInt64 flags);
 
