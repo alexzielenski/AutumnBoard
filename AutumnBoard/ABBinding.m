@@ -243,13 +243,15 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
     // before it gets to the point
     if (!customURL && class == ABBindingClassFileInfo) {
         // probably unecessary
-        NSString *uti = (__bridge_transfer NSString *)ABBindingCopyUTI(destination);
-        customURL = customIconForUTI(uti);
+        NSString *ext = (__bridge NSString *)ABFileInfoBindingGetExtension(destination);
+        customURL = customIconForExtension(ext);
         
         // very necessary
         if (!customURL) {
-            NSString *ext = (__bridge NSString *)ABFileInfoBindingGetExtension(destination);
-            customURL = customIconForExtension(ext);
+            NSString *uti = (__bridge_transfer NSString *)ABBindingCopyUTI(destination);
+            //!TODO: add an argument to this method to check explicitly only for this uti
+            //!and not equivalent types
+            customURL = customIconForUTI(uti);
         }
         
         if (!customURL) {

@@ -348,8 +348,13 @@ NSURL *customIconForOSType(NSString *type) {
         return tentativeURL;
     }
     
-    // step 2, convert to uti and go ham
-    // step 2: get all of the utis for this extension and check against that
+    // step 2, check this specific type
+    tentativeURL = URLForOSType(type);
+    if ([manager fileExistsAtPath:tentativeURL.path]) {
+        return tentativeURL;
+    }
+    
+    // step 3: get all of the utis for this ostype and check against that
     NSArray *utis = (__bridge_transfer NSArray *)UTTypeCreateAllIdentifiersForTag(kUTTagClassOSType, (__bridge CFStringRef)type, NULL);
     for (NSString *uti in utis) {
         // Use this so it also checks other variants of this extension
@@ -405,7 +410,13 @@ NSURL *customIconForExtension(NSString *extension) {
         return tentativeURL;
     }
     
-    // step 2: get all of the utis for this extension and check against that
+    // step 2, check this specific extension first
+    tentativeURL = URLForExtension(extension);
+    if ([manager fileExistsAtPath: tentativeURL.path]) {
+        return tentativeURL;
+    }
+    
+    // step 3: get all of the utis for this extension and check against that
     NSArray *utis = (__bridge_transfer NSArray *)UTTypeCreateAllIdentifiersForTag(kUTTagClassFilenameExtension, (__bridge CFStringRef)extension, NULL);
     for (NSString *uti in utis) {
         // Use this so it also checks other variants of this extension
