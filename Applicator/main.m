@@ -46,13 +46,15 @@ int main(int argc, const char * argv[]) {
                 NSURL *abs = [destURL URLByAppendingPathComponent:path];
                 NSDictionary *props = [url resourceValuesForKeys:@[ NSURLIsDirectoryKey ] error:nil];
                 if (![props[NSURLIsDirectoryKey] boolValue]) {
-                    [NSURL writeBookmarkData:[url bookmarkDataWithOptions:NSURLBookmarkCreationSuitableForBookmarkFile
-                                           includingResourceValuesForKeys:@[]
-                                                            relativeToURL:nil
-                                                                    error:nil]
-                                       toURL:abs
-                                     options:NSURLBookmarkCreationSuitableForBookmarkFile
-                                       error:nil];
+//                    [NSURL writeBookmarkData:[url bookmarkDataWithOptions:NSURLBookmarkCreationSuitableForBookmarkFile
+//                                           includingResourceValuesForKeys:@[]
+//                                                            relativeToURL:nil
+//                                                                    error:nil]
+//                                       toURL:abs
+//                                     options:NSURLBookmarkCreationSuitableForBookmarkFile
+//                                       error:nil];
+                    [manager removeItemAtURL:url error:nil];
+                    [manager createSymbolicLinkAtURL:abs.absoluteURL withDestinationURL:url.absoluteURL error:nil];
                 } else {
                     [manager createDirectoryAtURL:abs
                       withIntermediateDirectories:YES
@@ -62,7 +64,8 @@ int main(int argc, const char * argv[]) {
             }
         }
         
-        [[NSRunLoop currentRunLoop] run];
+        printf("Done.\n");
     }
+    
     return 0;
 }

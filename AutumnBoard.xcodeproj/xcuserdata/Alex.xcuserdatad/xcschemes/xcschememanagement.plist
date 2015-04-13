@@ -14,6 +14,11 @@
 			<key>orderHint</key>
 			<integer>0</integer>
 		</dict>
+		<key>TestEnvironment.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>4</integer>
+		</dict>
 		<key>bndl.xcscheme</key>
 		<dict>
 			<key>orderHint</key>
@@ -27,6 +32,11 @@
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
 	<dict>
+		<key>FA548F251ADC4E2F0041CB6E</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
 		<key>FADA6B6C1ADC33A40099E1D3</key>
 		<dict>
 			<key>primary</key>

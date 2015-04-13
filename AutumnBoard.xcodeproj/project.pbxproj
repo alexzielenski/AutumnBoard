@@ -12,6 +12,9 @@
 		FA46A7511AD047D400739C3B /* ABResourceThemer.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A74F1AD047D400739C3B /* ABResourceThemer.m */; };
 		FA46A7541AD0480100739C3B /* ABBindingManager.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A7521AD0480100739C3B /* ABBindingManager.m */; };
 		FA46A7571AD050BA00739C3B /* ABResourceRouter.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A7551AD050BA00739C3B /* ABResourceRouter.m */; };
+		FA548F291ADC4E2F0041CB6E /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = FA548F281ADC4E2F0041CB6E /* main.m */; };
+		FA548F2E1ADC4ECC0041CB6E /* ABResourceThemer.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A74F1AD047D400739C3B /* ABResourceThemer.m */; };
+		FA548F2F1ADC4ED50041CB6E /* Opee.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FAE4FABE1ACC885D003283C5 /* Opee.framework */; };
 		FADA6B701ADC33A40099E1D3 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = FADA6B6F1ADC33A40099E1D3 /* main.m */; };
 		FADA6B7B1ADC45220099E1D3 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = FADA6B7A1ADC45220099E1D3 /* main.m */; };
 		FADA6B861ADC452C0099E1D3 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = FADA6B851ADC452C0099E1D3 /* main.m */; };
@@ -48,6 +51,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		FA548F241ADC4E2F0041CB6E /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
 		FADA6B6B1ADC33A40099E1D3 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -102,6 +114,8 @@
 		FA46A7531AD0480100739C3B /* ABBindingManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ABBindingManager.h; sourceTree = "<group>"; };
 		FA46A7551AD050BA00739C3B /* ABResourceRouter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ABResourceRouter.m; sourceTree = "<group>"; };
 		FA46A7561AD050BA00739C3B /* ABResourceRouter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ABResourceRouter.h; sourceTree = "<group>"; };
+		FA548F261ADC4E2F0041CB6E /* TestEnvironment */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = TestEnvironment; sourceTree = BUILT_PRODUCTS_DIR; };
+		FA548F281ADC4E2F0041CB6E /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		FACF42321AD5CC100035E697 /* AutumnBoard.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AutumnBoard.h; sourceTree = "<group>"; };
 		FADA6B6D1ADC33A40099E1D3 /* Applicator */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Applicator; sourceTree = BUILT_PRODUCTS_DIR; };
 		FADA6B6F1ADC33A40099E1D3 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
@@ -117,6 +131,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		FA548F231ADC4E2F0041CB6E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FA548F2F1ADC4ED50041CB6E /* Opee.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		FADA6B6A1ADC33A40099E1D3 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -150,6 +172,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		FA548F271ADC4E2F0041CB6E /* TestEnvironment */ = {
+			isa = PBXGroup;
+			children = (
+				FA548F281ADC4E2F0041CB6E /* main.m */,
+			);
+			path = TestEnvironment;
+			sourceTree = "<group>";
+		};
 		FADA6B6E1ADC33A40099E1D3 /* Applicator */ = {
 			isa = PBXGroup;
 			children = (
@@ -183,6 +213,7 @@
 				FADA6B6E1ADC33A40099E1D3 /* Applicator */,
 				FADA6B791ADC45220099E1D3 /* uti */,
 				FADA6B841ADC452C0099E1D3 /* bndl */,
+				FA548F271ADC4E2F0041CB6E /* TestEnvironment */,
 				FAE4FAB51ACC87B2003283C5 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -194,6 +225,7 @@
 				FADA6B6D1ADC33A40099E1D3 /* Applicator */,
 				FADA6B781ADC45220099E1D3 /* uti */,
 				FADA6B831ADC452C0099E1D3 /* bndl */,
+				FA548F261ADC4E2F0041CB6E /* TestEnvironment */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -230,6 +262,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		FA548F251ADC4E2F0041CB6E /* TestEnvironment */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FA548F2C1ADC4E2F0041CB6E /* Build configuration list for PBXNativeTarget "TestEnvironment" */;
+			buildPhases = (
+				FA548F221ADC4E2F0041CB6E /* Sources */,
+				FA548F231ADC4E2F0041CB6E /* Frameworks */,
+				FA548F241ADC4E2F0041CB6E /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TestEnvironment;
+			productName = TestEnvironment;
+			productReference = FA548F261ADC4E2F0041CB6E /* TestEnvironment */;
+			productType = "com.apple.product-type.tool";
+		};
 		FADA6B6C1ADC33A40099E1D3 /* Applicator */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = FADA6B731ADC33A40099E1D3 /* Build configuration list for PBXNativeTarget "Applicator" */;
@@ -311,6 +360,9 @@
 				LastUpgradeCheck = 0610;
 				ORGANIZATIONNAME = "Alex Zielenski";
 				TargetAttributes = {
+					FA548F251ADC4E2F0041CB6E = {
+						CreatedOnToolsVersion = 6.2;
+					};
 					FADA6B6C1ADC33A40099E1D3 = {
 						CreatedOnToolsVersion = 6.2;
 					};
@@ -341,6 +393,7 @@
 				FADA6B6C1ADC33A40099E1D3 /* Applicator */,
 				FADA6B771ADC45220099E1D3 /* uti */,
 				FADA6B821ADC452C0099E1D3 /* bndl */,
+				FA548F251ADC4E2F0041CB6E /* TestEnvironment */,
 			);
 		};
 /* End PBXProject section */
@@ -356,6 +409,15 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		FA548F221ADC4E2F0041CB6E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FA548F2E1ADC4ECC0041CB6E /* ABResourceThemer.m in Sources */,
+				FA548F291ADC4E2F0041CB6E /* main.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		FADA6B691ADC33A40099E1D3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -414,6 +476,34 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		FA548F2A1ADC4E2F0041CB6E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+				);
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		FA548F2B1ADC4E2F0041CB6E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		FADA6B711ADC33A40099E1D3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -589,6 +679,14 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		FA548F2C1ADC4E2F0041CB6E /* Build configuration list for PBXNativeTarget "TestEnvironment" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FA548F2A1ADC4E2F0041CB6E /* Debug */,
+				FA548F2B1ADC4E2F0041CB6E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
 		FADA6B731ADC33A40099E1D3 /* Build configuration list for PBXNativeTarget "Applicator" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -596,6 +694,7 @@
 				FADA6B721ADC33A40099E1D3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		FADA6B7C1ADC45220099E1D3 /* Build configuration list for PBXNativeTarget "uti" */ = {
 			isa = XCConfigurationList;
@@ -604,6 +703,7 @@
 				FADA6B7E1ADC45220099E1D3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		FADA6B871ADC452C0099E1D3 /* Build configuration list for PBXNativeTarget "bndl" */ = {
 			isa = XCConfigurationList;
@@ -612,6 +712,7 @@
 				FADA6B891ADC452C0099E1D3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		FAE4FAAF1ACC87B2003283C5 /* Build configuration list for PBXProject "AutumnBoard" */ = {
 			isa = XCConfigurationList;
