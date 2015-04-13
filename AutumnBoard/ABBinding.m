@@ -104,8 +104,6 @@ OPHook3(void, IconResourceWithURL, void *, this, CFURLRef, url, UInt64, flags) {
         NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
         if (replacement)
             url = (__bridge CFURLRef)replacement;
-    } else {
-        ABLog("RESOURCEWITHURL: %@", url);
     }
     
     OPOldCall(this, url, flags);
@@ -143,7 +141,7 @@ OPInitialize {
         return;
     
     void *image = OPGetImageByName("/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices");
-    
+
     IconResourceWithBinding = OPFindSymbol(image, "__ZN12IconResource10initializeEP9LSContextP9LSBindingy");
     OPHookFunction(IconResourceWithBinding);
     
@@ -242,22 +240,20 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
     // Since we get the original icon and step backward. We can find by extension this way
     // before it gets to the point
     if (!customURL && class == ABBindingClassFileInfo) {
-        // probably unecessary
         NSString *ext = (__bridge NSString *)ABFileInfoBindingGetExtension(destination);
         customURL = customIconForExtension(ext);
-        
-        // very necessary
-        if (!customURL) {
-            NSString *uti = (__bridge_transfer NSString *)ABBindingCopyUTI(destination);
-            //!TODO: add an argument to this method to check explicitly only for this uti
-            //!and not equivalent types
-            customURL = customIconForUTI(uti);
-        }
         
         if (!customURL) {
             OSType type = ABBindingGetOSType(destination);
             if (type != 0 && type != '????')
                 customURL = customIconForOSType(ABStringFromOSType(type));
+        }
+
+        if (!customURL) {
+            NSString *uti = (__bridge_transfer NSString *)ABBindingCopyUTI(destination);
+            //!TODO: add an argument to this method to check explicitly only for this uti
+            //!and not equivalent types
+            customURL = customIconForUTI(uti);
         }
     }
     

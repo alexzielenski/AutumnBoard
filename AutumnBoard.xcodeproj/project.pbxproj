@@ -12,10 +12,83 @@
 		FA46A7511AD047D400739C3B /* ABResourceThemer.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A74F1AD047D400739C3B /* ABResourceThemer.m */; };
 		FA46A7541AD0480100739C3B /* ABBindingManager.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A7521AD0480100739C3B /* ABBindingManager.m */; };
 		FA46A7571AD050BA00739C3B /* ABResourceRouter.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A7551AD050BA00739C3B /* ABResourceRouter.m */; };
+		FADA6B701ADC33A40099E1D3 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = FADA6B6F1ADC33A40099E1D3 /* main.m */; };
+		FADA6B7B1ADC45220099E1D3 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = FADA6B7A1ADC45220099E1D3 /* main.m */; };
+		FADA6B861ADC452C0099E1D3 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = FADA6B851ADC452C0099E1D3 /* main.m */; };
+		FADA6B8B1ADC45480099E1D3 /* Applicator in Copy Tools */ = {isa = PBXBuildFile; fileRef = FADA6B6D1ADC33A40099E1D3 /* Applicator */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		FADA6B8C1ADC454B0099E1D3 /* uti in Copy Tools */ = {isa = PBXBuildFile; fileRef = FADA6B781ADC45220099E1D3 /* uti */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		FADA6B8D1ADC454E0099E1D3 /* bndl in Copy Tools */ = {isa = PBXBuildFile; fileRef = FADA6B831ADC452C0099E1D3 /* bndl */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		FAE4FABF1ACC885D003283C5 /* Opee.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FAE4FABE1ACC885D003283C5 /* Opee.framework */; };
 		FAE4FAC11ACC886D003283C5 /* AutumnBoard.m in Sources */ = {isa = PBXBuildFile; fileRef = FAE4FAC01ACC886D003283C5 /* AutumnBoard.m */; };
 		FAE4FAC51ACC8BD5003283C5 /* IconServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FAE4FAC41ACC8BD5003283C5 /* IconServices.framework */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		FADA6B8E1ADC45540099E1D3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FAE4FAAC1ACC87B2003283C5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FADA6B6C1ADC33A40099E1D3;
+			remoteInfo = Applicator;
+		};
+		FADA6B901ADC45560099E1D3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FAE4FAAC1ACC87B2003283C5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FADA6B771ADC45220099E1D3;
+			remoteInfo = uti;
+		};
+		FADA6B921ADC45590099E1D3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FAE4FAAC1ACC87B2003283C5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FADA6B821ADC452C0099E1D3;
+			remoteInfo = bndl;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FADA6B6B1ADC33A40099E1D3 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		FADA6B761ADC45220099E1D3 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		FADA6B811ADC452C0099E1D3 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		FADA6B8A1ADC45310099E1D3 /* Copy Tools */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Contents/bin;
+			dstSubfolderSpec = 1;
+			files = (
+				FADA6B8D1ADC454E0099E1D3 /* bndl in Copy Tools */,
+				FADA6B8C1ADC454B0099E1D3 /* uti in Copy Tools */,
+				FADA6B8B1ADC45480099E1D3 /* Applicator in Copy Tools */,
+			);
+			name = "Copy Tools";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		FA419A301AD61143006EA906 /* SUStandardVersionComparator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = SUStandardVersionComparator.h; path = Sparkle/SUStandardVersionComparator.h; sourceTree = "<group>"; };
@@ -30,6 +103,12 @@
 		FA46A7551AD050BA00739C3B /* ABResourceRouter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ABResourceRouter.m; sourceTree = "<group>"; };
 		FA46A7561AD050BA00739C3B /* ABResourceRouter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ABResourceRouter.h; sourceTree = "<group>"; };
 		FACF42321AD5CC100035E697 /* AutumnBoard.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AutumnBoard.h; sourceTree = "<group>"; };
+		FADA6B6D1ADC33A40099E1D3 /* Applicator */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Applicator; sourceTree = BUILT_PRODUCTS_DIR; };
+		FADA6B6F1ADC33A40099E1D3 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		FADA6B781ADC45220099E1D3 /* uti */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = uti; sourceTree = BUILT_PRODUCTS_DIR; };
+		FADA6B7A1ADC45220099E1D3 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		FADA6B831ADC452C0099E1D3 /* bndl */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = bndl; sourceTree = BUILT_PRODUCTS_DIR; };
+		FADA6B851ADC452C0099E1D3 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		FAE4FAB41ACC87B2003283C5 /* AutumnBoard.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AutumnBoard.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
 		FAE4FAB81ACC87B2003283C5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FAE4FABE1ACC885D003283C5 /* Opee.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Opee.framework; path = ../../../../../../Library/Frameworks/Opee.framework; sourceTree = "<group>"; };
@@ -38,6 +117,27 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		FADA6B6A1ADC33A40099E1D3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FADA6B751ADC45220099E1D3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FADA6B801ADC452C0099E1D3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		FAE4FAB11ACC87B2003283C5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -50,12 +150,39 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		FADA6B6E1ADC33A40099E1D3 /* Applicator */ = {
+			isa = PBXGroup;
+			children = (
+				FADA6B6F1ADC33A40099E1D3 /* main.m */,
+			);
+			path = Applicator;
+			sourceTree = "<group>";
+		};
+		FADA6B791ADC45220099E1D3 /* uti */ = {
+			isa = PBXGroup;
+			children = (
+				FADA6B7A1ADC45220099E1D3 /* main.m */,
+			);
+			path = uti;
+			sourceTree = "<group>";
+		};
+		FADA6B841ADC452C0099E1D3 /* bndl */ = {
+			isa = PBXGroup;
+			children = (
+				FADA6B851ADC452C0099E1D3 /* main.m */,
+			);
+			path = bndl;
+			sourceTree = "<group>";
+		};
 		FAE4FAAB1ACC87B2003283C5 = {
 			isa = PBXGroup;
 			children = (
 				FAE4FAC41ACC8BD5003283C5 /* IconServices.framework */,
 				FAE4FABE1ACC885D003283C5 /* Opee.framework */,
 				FAE4FAB61ACC87B2003283C5 /* AutumnBoard */,
+				FADA6B6E1ADC33A40099E1D3 /* Applicator */,
+				FADA6B791ADC45220099E1D3 /* uti */,
+				FADA6B841ADC452C0099E1D3 /* bndl */,
 				FAE4FAB51ACC87B2003283C5 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -64,6 +191,9 @@
 			isa = PBXGroup;
 			children = (
 				FAE4FAB41ACC87B2003283C5 /* AutumnBoard.bundle */,
+				FADA6B6D1ADC33A40099E1D3 /* Applicator */,
+				FADA6B781ADC45220099E1D3 /* uti */,
+				FADA6B831ADC452C0099E1D3 /* bndl */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -100,6 +230,57 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		FADA6B6C1ADC33A40099E1D3 /* Applicator */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FADA6B731ADC33A40099E1D3 /* Build configuration list for PBXNativeTarget "Applicator" */;
+			buildPhases = (
+				FADA6B691ADC33A40099E1D3 /* Sources */,
+				FADA6B6A1ADC33A40099E1D3 /* Frameworks */,
+				FADA6B6B1ADC33A40099E1D3 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Applicator;
+			productName = Applicator;
+			productReference = FADA6B6D1ADC33A40099E1D3 /* Applicator */;
+			productType = "com.apple.product-type.tool";
+		};
+		FADA6B771ADC45220099E1D3 /* uti */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FADA6B7C1ADC45220099E1D3 /* Build configuration list for PBXNativeTarget "uti" */;
+			buildPhases = (
+				FADA6B741ADC45220099E1D3 /* Sources */,
+				FADA6B751ADC45220099E1D3 /* Frameworks */,
+				FADA6B761ADC45220099E1D3 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = uti;
+			productName = uti;
+			productReference = FADA6B781ADC45220099E1D3 /* uti */;
+			productType = "com.apple.product-type.tool";
+		};
+		FADA6B821ADC452C0099E1D3 /* bndl */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FADA6B871ADC452C0099E1D3 /* Build configuration list for PBXNativeTarget "bndl" */;
+			buildPhases = (
+				FADA6B7F1ADC452C0099E1D3 /* Sources */,
+				FADA6B801ADC452C0099E1D3 /* Frameworks */,
+				FADA6B811ADC452C0099E1D3 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = bndl;
+			productName = bndl;
+			productReference = FADA6B831ADC452C0099E1D3 /* bndl */;
+			productType = "com.apple.product-type.tool";
+		};
 		FAE4FAB31ACC87B2003283C5 /* AutumnBoard */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = FAE4FABB1ACC87B2003283C5 /* Build configuration list for PBXNativeTarget "AutumnBoard" */;
@@ -107,10 +288,14 @@
 				FAE4FAB01ACC87B2003283C5 /* Sources */,
 				FAE4FAB11ACC87B2003283C5 /* Frameworks */,
 				FAE4FAB21ACC87B2003283C5 /* Resources */,
+				FADA6B8A1ADC45310099E1D3 /* Copy Tools */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				FADA6B931ADC45590099E1D3 /* PBXTargetDependency */,
+				FADA6B911ADC45560099E1D3 /* PBXTargetDependency */,
+				FADA6B8F1ADC45540099E1D3 /* PBXTargetDependency */,
 			);
 			name = AutumnBoard;
 			productName = AutumnBoard;
@@ -126,6 +311,15 @@
 				LastUpgradeCheck = 0610;
 				ORGANIZATIONNAME = "Alex Zielenski";
 				TargetAttributes = {
+					FADA6B6C1ADC33A40099E1D3 = {
+						CreatedOnToolsVersion = 6.2;
+					};
+					FADA6B771ADC45220099E1D3 = {
+						CreatedOnToolsVersion = 6.2;
+					};
+					FADA6B821ADC452C0099E1D3 = {
+						CreatedOnToolsVersion = 6.2;
+					};
 					FAE4FAB31ACC87B2003283C5 = {
 						CreatedOnToolsVersion = 6.1.1;
 					};
@@ -144,6 +338,9 @@
 			projectRoot = "";
 			targets = (
 				FAE4FAB31ACC87B2003283C5 /* AutumnBoard */,
+				FADA6B6C1ADC33A40099E1D3 /* Applicator */,
+				FADA6B771ADC45220099E1D3 /* uti */,
+				FADA6B821ADC452C0099E1D3 /* bndl */,
 			);
 		};
 /* End PBXProject section */
@@ -159,6 +356,30 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		FADA6B691ADC33A40099E1D3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FADA6B701ADC33A40099E1D3 /* main.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FADA6B741ADC45220099E1D3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FADA6B7B1ADC45220099E1D3 /* main.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FADA6B7F1ADC452C0099E1D3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FADA6B861ADC452C0099E1D3 /* main.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		FAE4FAB01ACC87B2003283C5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -174,7 +395,85 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		FADA6B8F1ADC45540099E1D3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FADA6B6C1ADC33A40099E1D3 /* Applicator */;
+			targetProxy = FADA6B8E1ADC45540099E1D3 /* PBXContainerItemProxy */;
+		};
+		FADA6B911ADC45560099E1D3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FADA6B771ADC45220099E1D3 /* uti */;
+			targetProxy = FADA6B901ADC45560099E1D3 /* PBXContainerItemProxy */;
+		};
+		FADA6B931ADC45590099E1D3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FADA6B821ADC452C0099E1D3 /* bndl */;
+			targetProxy = FADA6B921ADC45590099E1D3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		FADA6B711ADC33A40099E1D3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		FADA6B721ADC33A40099E1D3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		FADA6B7D1ADC45220099E1D3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		FADA6B7E1ADC45220099E1D3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		FADA6B881ADC452C0099E1D3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		FADA6B891ADC452C0099E1D3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		FAE4FAB91ACC87B2003283C5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -290,6 +589,30 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		FADA6B731ADC33A40099E1D3 /* Build configuration list for PBXNativeTarget "Applicator" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FADA6B711ADC33A40099E1D3 /* Debug */,
+				FADA6B721ADC33A40099E1D3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+		FADA6B7C1ADC45220099E1D3 /* Build configuration list for PBXNativeTarget "uti" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FADA6B7D1ADC45220099E1D3 /* Debug */,
+				FADA6B7E1ADC45220099E1D3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+		FADA6B871ADC452C0099E1D3 /* Build configuration list for PBXNativeTarget "bndl" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FADA6B881ADC452C0099E1D3 /* Debug */,
+				FADA6B891ADC452C0099E1D3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
 		FAE4FAAF1ACC87B2003283C5 /* Build configuration list for PBXProject "AutumnBoard" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

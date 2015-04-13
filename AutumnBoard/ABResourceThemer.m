@@ -24,7 +24,7 @@ static NSString *const ABTypeIndexOSTypesKey    = @"ostypes";
 static NSString *const ABTypeIndexRoleKey       = @"role";
 
 OPInitialize {
-    ThemePath = [NSURL fileURLWithPath:@"/Library/AutumnBoard/Themes/Fladder2"];
+    ThemePath = [NSURL fileURLWithPath:@"/Library/AutumnBoard/ComputedTheme"];
 }
 
 BOOL ABURLInThemesDirectory(NSURL *url) {
@@ -32,6 +32,11 @@ BOOL ABURLInThemesDirectory(NSURL *url) {
 }
 
 #pragma mark - URL Generation
+static NSURL *resolve(NSURL *url) {
+    if (!url)
+        return nil;
+    return [[NSURL URLByResolvingAliasFileAtURL:url options:NSURLBookmarkResolutionWithoutUI | NSURLBookmarkResolutionWithoutMounting error:nil] URLByResolvingSymlinksInPath];
+}
 
 static NSURL *URLForBundle(NSBundle *bundle) {
     if (!bundle || ![bundle isKindOfClass:[NSBundle class]])
@@ -47,29 +52,29 @@ static NSURL *URLForBundle(NSBundle *bundle) {
         return nil;
     }
     
-    return [[[ThemePath URLByAppendingPathComponent:@"Bundles"] URLByAppendingPathComponent:identifier] URLByResolvingSymlinksInPath];
+    return [[ThemePath URLByAppendingPathComponent:@"Bundles"] URLByAppendingPathComponent:identifier];
 }
 
-NSURL *URLForOSType(NSString *type) {
+static NSURL *URLForOSType(NSString *type) {
     if (!type)
         return nil;
     
-    return [[[[ThemePath URLByAppendingPathComponent:@"OSTypes"] URLByAppendingPathComponent:type] URLByAppendingPathExtension:@"icns"] URLByResolvingSymlinksInPath];
+    return [[[ThemePath URLByAppendingPathComponent:@"OSTypes"] URLByAppendingPathComponent:type] URLByAppendingPathExtension:@"icns"];
 }
 
-NSURL *URLForUTIFile(NSString *name) {
+static NSURL *URLForUTIFile(NSString *name) {
     if (!name)
         return nil;
-    return [[[[ThemePath URLByAppendingPathComponent:@"UTIs"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"] URLByResolvingSymlinksInPath];
+    return [[[ThemePath URLByAppendingPathComponent:@"UTIs"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"];
 }
 
-NSURL *URLForExtension(NSString *name) {
+static NSURL *URLForExtension(NSString *name) {
     if (!name)
         return nil;
-    return [[[[ThemePath URLByAppendingPathComponent:@"Extensions"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"] URLByResolvingSymlinksInPath];
+    return [[[ThemePath URLByAppendingPathComponent:@"Extensions"] URLByAppendingPathComponent:name] URLByAppendingPathExtension:@"icns"];
 }
 
-NSURL *URLForAbsolutePath(NSURL *path) {
+static NSURL *URLForAbsolutePath(NSURL *path) {
     if (!path)
         return nil;
     
@@ -81,7 +86,7 @@ NSURL *URLForAbsolutePath(NSURL *path) {
     if (![url.pathExtension isEqualToString:@"icns"])
         url = [url URLByAppendingPathExtension:@"icns"];
     
-    return [url URLByResolvingSymlinksInPath];
+    return url;
 }
 
 #pragma mark - Bundle Helpers
@@ -182,7 +187,7 @@ static NSString *nameOfIconForBundle(NSBundle *bundle) {
     return iconName;
 }
 
-NSURL *iconForBundle(NSBundle *bundle) {
+static NSURL *_iconForBundle(NSBundle *bundle) {
     // Check Absolute Path
     NSURL *absolute = customIconForURL(bundle.bundleURL);
     if (absolute) {
@@ -206,9 +211,12 @@ NSURL *iconForBundle(NSBundle *bundle) {
     return replacementURLForURLRelativeToBundle(iconURL, bundle);
 }
 
-#pragma mark - Absolute Path Helpers
+NSURL *iconForBundle(NSBundle *bundle) {
+    return resolve(_iconForBundle(bundle));
+}
 
-NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
+#pragma mark - Absolute Path Helpers
+static NSURL *_replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
     if (!url || !url.isFileURL || !bndl.bundleIdentifier || ABURLInThemesDirectory(url))
         return nil;
     
@@ -237,9 +245,10 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
             return iconURL;
         }
     }
+    
     testURL = URLForBundle(bndl);
     for (NSUInteger x =  rsrcIdx + 1; x < urlComponents.count; x++) {
-        testURL = [[testURL URLByAppendingPathComponent:urlComponents[x]] URLByResolvingSymlinksInPath];
+        testURL = [testURL URLByAppendingPathComponent:urlComponents[x]];
     }
     
     if ([manager fileExistsAtPath:testURL.path])
@@ -262,8 +271,12 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
                 NSArray *utis = entry[ABTypeIndexUTIsKey];
                 for (NSString *uti in utis) {
                     NSURL *url = customIconForUTI(uti);
-                    if (url)
+                    
+                    NSURL *defaultURL = (__bridge_transfer NSURL *)LSCopyDefaultApplicationURLForContentType((__bridge CFStringRef)uti, 0x00000002, NULL);
+                    if (url && [defaultURL isEqualTo:bndl.bundleURL]) {
+                        ABLog("PASSED TEST: %@", url);
                         return url;
+                    }
                 }
                 
                 NSArray *extensions = entry[ABTypeIndexExtensionsKey];
@@ -284,6 +297,10 @@ NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
     }
 
     return nil;
+}
+
+NSURL *replacementURLForURLRelativeToBundle(NSURL *url, NSBundle *bndl) {
+    return resolve(_replacementURLForURLRelativeToBundle(url, bndl));
 }
 
 NSURL *replacementURLForURL(NSURL *url) {
@@ -318,7 +335,7 @@ NSURL *replacementURLForURL(NSURL *url) {
     return replacementURLForURLRelativeToBundle(url, bndl);
 }
 
-NSURL *customIconForURL(NSURL *url) {
+static NSURL *_customIconForURL(NSURL *url) {
     if (!url)
         return nil;
 
@@ -334,9 +351,13 @@ NSURL *customIconForURL(NSURL *url) {
     return nil;
 }
 
+NSURL *customIconForURL(NSURL *url) {
+    return resolve(_customIconForURL(url));
+}
+
 #pragma mark - UTI Helpers
 
-NSURL *customIconForOSType(NSString *type) {
+static NSURL *_customIconForOSType(NSString *type) {
     if (!type || type.length != 4 || [type isEqualToString:@"????"]) {
         return nil;
     }
@@ -367,7 +388,11 @@ NSURL *customIconForOSType(NSString *type) {
     return nil;
 }
 
-NSURL *customIconForUTI(NSString *uti) {
+NSURL *customIconForOSType(NSString *type) {
+    return resolve(_customIconForOSType(type));
+}
+
+static NSURL *_customIconForUTI(NSString *uti) {
     if (!uti || UTTypeIsDynamic((__bridge CFStringRef)(uti)))
         return nil;
     
@@ -399,7 +424,11 @@ NSURL *customIconForUTI(NSString *uti) {
     return nil;
 }
 
-NSURL *customIconForExtension(NSString *extension) {
+NSURL *customIconForUTI(NSString *uti) {
+    return resolve(_customIconForUTI(uti));
+}
+
+static NSURL *_customIconForExtension(NSString *extension) {
     if (!extension)
         return nil;
     
@@ -427,4 +456,8 @@ NSURL *customIconForExtension(NSString *extension) {
     }
     
     return nil;
+}
+
+NSURL *customIconForExtension(NSString *extension) {
+    return resolve(_customIconForExtension(extension));
 }

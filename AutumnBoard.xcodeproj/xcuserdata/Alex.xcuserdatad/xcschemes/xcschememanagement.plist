@@ -4,14 +4,44 @@
 <dict>
 	<key>SchemeUserState</key>
 	<dict>
+		<key>Applicator.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>1</integer>
+		</dict>
 		<key>AutumnBoard.xcscheme</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>0</integer>
 		</dict>
+		<key>bndl.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>3</integer>
+		</dict>
+		<key>uti.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>2</integer>
+		</dict>
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
 	<dict>
+		<key>FADA6B6C1ADC33A40099E1D3</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>FADA6B771ADC45220099E1D3</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>FADA6B821ADC452C0099E1D3</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
 		<key>FAE4FAB31ACC87B2003283C5</key>
 		<dict>
 			<key>primary</key>
