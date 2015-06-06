@@ -183,7 +183,7 @@ OPInitialize {
     
     // vtables begin starting with two zeroes so stop when we find those
     // or if thats not the case we can reasonably limit to searching 64 entries
-    for (int x = 2; bindingVtable[x] != 0x0 && bindingVtable[x+1] != 0x0 && x < 64; x++) {
+    for (int x = 2; (bindingVtable[x] != 0x0 || bindingVtable[x+1] != 0x0) && x < 64; x++) {
         void *ptr = bindingVtable[x];
         UInt64 offset = (x - 2) * sizeof(void *);
         if (ptr == copyUTI && ABBindingMethodOffsets.copyUTI == 0)
