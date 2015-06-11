@@ -35,12 +35,11 @@ ZKSwizzleInterface($_ZABSidebarImage, NSSidebarImage, NSImage)
 }
 @end
 
-
 #pragma mark - Initialize
 OPInitialize {
-#ifdef DEBUG
+//#ifdef DEBUG
     ABLog("AutumnBoard Loaded");
-#endif
+//#endif
 }
 
 #pragma mark - Support
@@ -78,7 +77,7 @@ BOOL ABIsSupportedVersion() {
     static BOOL supported = NO;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        supported = ABLaunchServicesVersionInRange(ABLaunchServicesVersion101002, ABLaunchServicesVersion101003);
+        supported = ABLaunchServicesVersionInRange(ABSupportedVersionMinimum, ABSupportedVersionMaximum);
     });
     return supported;
 }

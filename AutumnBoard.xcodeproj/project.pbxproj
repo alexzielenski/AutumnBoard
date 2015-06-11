@@ -7,10 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FA2B904C1B2907F200116387 /* AutumnBoard.m in Sources */ = {isa = PBXBuildFile; fileRef = FAE4FAC01ACC886D003283C5 /* AutumnBoard.m */; };
+		FA2B904D1B2907F500116387 /* ABBinding.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A74B1AD0440F00739C3B /* ABBinding.m */; };
+		FA2B904F1B2907FB00116387 /* ABResourceRouter.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A7551AD050BA00739C3B /* ABResourceRouter.m */; };
+		FA2B90501B29081100116387 /* SUStandardVersionComparator.m in Sources */ = {isa = PBXBuildFile; fileRef = FA419A311AD61143006EA906 /* SUStandardVersionComparator.m */; };
 		FA419A321AD61143006EA906 /* SUStandardVersionComparator.m in Sources */ = {isa = PBXBuildFile; fileRef = FA419A311AD61143006EA906 /* SUStandardVersionComparator.m */; };
 		FA46A74D1AD0440F00739C3B /* ABBinding.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A74B1AD0440F00739C3B /* ABBinding.m */; };
 		FA46A7511AD047D400739C3B /* ABResourceThemer.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A74F1AD047D400739C3B /* ABResourceThemer.m */; };
-		FA46A7541AD0480100739C3B /* ABBindingManager.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A7521AD0480100739C3B /* ABBindingManager.m */; };
 		FA46A7571AD050BA00739C3B /* ABResourceRouter.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A7551AD050BA00739C3B /* ABResourceRouter.m */; };
 		FA548F291ADC4E2F0041CB6E /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = FA548F281ADC4E2F0041CB6E /* main.m */; };
 		FA548F2E1ADC4ECC0041CB6E /* ABResourceThemer.m in Sources */ = {isa = PBXBuildFile; fileRef = FA46A74F1AD047D400739C3B /* ABResourceThemer.m */; };
@@ -110,8 +113,6 @@
 		FA46A74E1AD0446000739C3B /* ABLogging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ABLogging.h; sourceTree = "<group>"; };
 		FA46A74F1AD047D400739C3B /* ABResourceThemer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ABResourceThemer.m; sourceTree = "<group>"; };
 		FA46A7501AD047D400739C3B /* ABResourceThemer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ABResourceThemer.h; sourceTree = "<group>"; };
-		FA46A7521AD0480100739C3B /* ABBindingManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ABBindingManager.m; sourceTree = "<group>"; };
-		FA46A7531AD0480100739C3B /* ABBindingManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ABBindingManager.h; sourceTree = "<group>"; };
 		FA46A7551AD050BA00739C3B /* ABResourceRouter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ABResourceRouter.m; sourceTree = "<group>"; };
 		FA46A7561AD050BA00739C3B /* ABResourceRouter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ABResourceRouter.h; sourceTree = "<group>"; };
 		FA548F261ADC4E2F0041CB6E /* TestEnvironment */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = TestEnvironment; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -241,8 +242,6 @@
 				FA46A74E1AD0446000739C3B /* ABLogging.h */,
 				FA46A74C1AD0440F00739C3B /* ABBinding.h */,
 				FA46A74B1AD0440F00739C3B /* ABBinding.m */,
-				FA46A7531AD0480100739C3B /* ABBindingManager.h */,
-				FA46A7521AD0480100739C3B /* ABBindingManager.m */,
 				FA46A7501AD047D400739C3B /* ABResourceThemer.h */,
 				FA46A74F1AD047D400739C3B /* ABResourceThemer.m */,
 				FA46A7561AD050BA00739C3B /* ABResourceRouter.h */,
@@ -413,8 +412,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FA548F2E1ADC4ECC0041CB6E /* ABResourceThemer.m in Sources */,
 				FA548F291ADC4E2F0041CB6E /* main.m in Sources */,
+				FA2B904D1B2907F500116387 /* ABBinding.m in Sources */,
+				FA2B90501B29081100116387 /* SUStandardVersionComparator.m in Sources */,
+				FA2B904C1B2907F200116387 /* AutumnBoard.m in Sources */,
+				FA548F2E1ADC4ECC0041CB6E /* ABResourceThemer.m in Sources */,
+				FA2B904F1B2907FB00116387 /* ABResourceRouter.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -446,7 +449,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FA46A7541AD0480100739C3B /* ABBindingManager.m in Sources */,
 				FA46A7571AD050BA00739C3B /* ABResourceRouter.m in Sources */,
 				FA46A7511AD047D400739C3B /* ABResourceThemer.m in Sources */,
 				FA419A321AD61143006EA906 /* SUStandardVersionComparator.m in Sources */,
@@ -623,7 +625,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = YES;
+				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -686,6 +688,7 @@
 				FA548F2B1ADC4E2F0041CB6E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		FADA6B731ADC33A40099E1D3 /* Build configuration list for PBXNativeTarget "Applicator" */ = {
 			isa = XCConfigurationList;

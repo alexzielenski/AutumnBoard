@@ -7,9 +7,23 @@
 //
 
 #import "ABBinding.h"
-#import "ABBindingManager.h"
 #import "ABResourceThemer.h"
 #import <Opee/Opee.h>
+
+static void *(*CreateWithUTI)(CFStringRef uti, BOOL arg1);
+static void *(*CreateWithLegacyIconRef)(IconRef, BOOL);
+static void *(*CreateWithTypeInfo)(OSType arg0, OSType arg1, CFStringRef extension, BOOL arg3);
+static void *(*CreateWithFileInfo)(FSRef const *ref, unsigned long arg1, unsigned short const *arg2, unsigned int arg3, FSCatalogInfo const *arg4, bool arg5);
+static void *(*CreateWithURL)(CFURLRef url, BOOL arg1);
+static void *(*CreateWithResourceURL)(CFURLRef url, BOOL arg1);
+static void *(*CreateWithBookmarkData)(CFDataRef bookmarkData, BOOL arg1);
+static void *(*CreateWithAliasData)(CFDataRef aliasData, BOOL arg1);
+static void *(*CreateWithFolder)(SInt16 vRefNum, SInt32 parentFolderID, SInt32 folderID, SInt8 attributes, SInt8 accessPrivileges, BOOL arg5);
+static void *(*CreateWithDeviceID)(const char *device, BOOL arg1);
+static void *(*CreateVariant)(ABBindingRef binding, unsigned long long, unsigned long long, BOOL);
+static ABBindingRef (*CreateWithCompositeComponents)(ABBindingRef, ABBindingRef, BOOL);
+static ABBindingRef (*CreateWithSideFaultFile)(CFURLRef, BOOL);
+static ABBindingRef (*CreateWithData)(CFDataRef, BOOL);
 
 static struct _ABBindingMethodOffsets {
     UInt64 getBindingClass;
@@ -18,9 +32,13 @@ static struct _ABBindingMethodOffsets {
     UInt64 copyDebugDesc;
     UInt64 getBadge;
     UInt64 setBadge;
+    
+    BOOL valid;
 } ABBindingMethodOffsets;
 
 static struct _ABPropertyOffsets {
+    BOOL valid;
+    
     // All Bindings
     UInt64 iconRef;
     
@@ -71,6 +89,7 @@ static struct _ABBindingMethods {
 // make for interesting possibilities
 void (*IconResourceWithTypeInfo)(void *, void *, UInt64);
 OPHook3(void, IconResourceWithTypeInfo, void *, this, OSType, type, UInt64, flags) {
+    ABLog("With type info");
     OPOldCall(this, type, flags);
 
     NSURL *custom = customIconForOSType(ABStringFromOSType(type));
@@ -87,6 +106,7 @@ OPHook3(void, IconResourceWithTypeInfo, void *, this, OSType, type, UInt64, flag
 
 void (*IconResourceWithBundle)(void *, CFURLRef, CFStringRef, UInt64);
 OPHook4(void, IconResourceWithBundle, void *, this, CFURLRef, url, CFStringRef, name, UInt64, flags) {
+    ABLog("With bundle");
     OPOldCall(this, url, name, flags);
 
     NSBundle *bndl = [NSBundle bundleWithURL:((__bridge NSURL *)url)];
@@ -100,6 +120,7 @@ OPHook4(void, IconResourceWithBundle, void *, this, CFURLRef, url, CFStringRef, 
 
 void (*IconResourceWithURL)(void *, CFURLRef, UInt64);
 OPHook3(void, IconResourceWithURL, void *, this, CFURLRef, url, UInt64, flags) {
+    ABLog("With url");
     if ([(__bridge NSURL *)url isKindOfClass:[NSURL class]]) {
         NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
         if (replacement)
@@ -111,6 +132,7 @@ OPHook3(void, IconResourceWithURL, void *, this, CFURLRef, url, UInt64, flags) {
 
 void (*IconResourceWithFileInfo)(void *, CFStringRef, CFStringRef, UInt64);
 OPHook4(void, IconResourceWithFileInfo, void *, this, CFStringRef, uti, CFStringRef, conformance, UInt64, flags) {
+    ABLog("With file info");
     OPOldCall(this, uti, conformance, flags);
 
     NSURL *custom = customIconForUTI((__bridge NSString *)uti);
@@ -136,26 +158,86 @@ OPHook4(void, IconResourceWithBinding, void *, this, void *, context, void **, b
     }
 }
 
+#pragma mark - Binding Hooks
+
+OPHook6(ABBindingRef, CreateWithFileInfo, FSRef const *, ref, UniCharCount, fileNameLength, const UniChar *, fileName, FSCatalogInfoBitmap, inWhichInfo, FSCatalogInfo const *, outInfo, BOOL, arg5) {
+    NSURL *targetURL = (__bridge_transfer NSURL *)CFURLCreateFromFSRef(NULL, ref);
+    return ABPairBindingsWithURL(OPOldCall(ref, fileNameLength, fileName, inWhichInfo, outInfo, arg5), targetURL);
+}
+
+OPHook2(ABBindingRef, CreateWithURL, CFURLRef, url, BOOL, arg1) {
+    return ABPairBindingsWithURL(OPOldCall(url, arg1),(__bridge NSURL *)url);
+}
+
+OPHook2(ABBindingRef, CreateWithUTI, CFStringRef, uti, BOOL, arg1) {
+    return ABPairBindingsWithURL(OPOldCall(uti, arg1), NULL);
+}
+
+// I don't really know what the difference between BookmarkData and aliasData is but who cares
+OPHook2(ABBindingRef, CreateWithBookmarkData, CFDataRef, bookmarkData, BOOL, arg1) {
+    BOOL stale = NO;
+    NSError *error = nil;
+    NSURL *resolved = [NSURL URLByResolvingBookmarkData:(__bridge NSData *)bookmarkData
+                                                options:NSURLBookmarkResolutionWithoutUI | NSURLBookmarkResolutionWithoutMounting
+                                          relativeToURL:nil
+                                    bookmarkDataIsStale:&stale
+                                                  error:&error];
+    if (error || stale) {
+        resolved = nil;
+    }
+    
+    return ABPairBindingsWithURL(OPOldCall(bookmarkData, arg1), resolved);
+}
+
+// This is used in the Finder sidebar
+OPHook2(ABBindingRef, CreateWithAliasData, CFDataRef, aliasData, BOOL, arg1) {
+    NSData *bookmarkData = (__bridge_transfer NSData *)CFURLCreateBookmarkDataFromAliasRecord(NULL,
+                                                                                              aliasData);
+    BOOL stale = NO;
+    NSError *error = nil;
+    NSURL *resolved = [NSURL URLByResolvingBookmarkData:bookmarkData
+                                                options:NSURLBookmarkResolutionWithoutUI | NSURLBookmarkResolutionWithoutMounting
+                                          relativeToURL:nil
+                                    bookmarkDataIsStale:&stale
+                                                  error:&error];
+    if (error || stale) {
+        resolved = nil;
+    }
+    
+    return ABPairBindingsWithURL(OPOldCall(aliasData, arg1), resolved);
+}
+
+// Asks for an icon given type information such as ostype and extension
+OPHook4(ABBindingRef, CreateWithTypeInfo, OSType, creator, OSType, iconType, CFStringRef, extension, BOOL, arg3) {
+    return ABPairBindingsWithURL(OPOldCall(creator, iconType, extension, arg3), NULL);
+}
+
+OPHook6(ABBindingRef, CreateWithFolder, SInt16, vRefNum, SInt32, parentFolderID, SInt32, folderID, SInt8, attributes, SInt8, accessPrivileges, BOOL, arg5) {
+    return ABPairBindingsWithURL(OPOldCall(vRefNum, parentFolderID, folderID, attributes, accessPrivileges, arg5), NULL);
+}
+
+OPHook2(ABBindingRef, CreateWithDeviceID, const char *, device, BOOL, arg1) {
+    return ABPairBindingsWithURL(OPOldCall(device, arg1), NULL);
+}
+
+OPHook4(ABBindingRef, CreateVariant, void *, binding, unsigned long long, arg1, unsigned long long, arg2, BOOL, arg3) {
+    return ABPairBindingsWithURL(OPOldCall(binding, arg1, arg2, arg3), NULL);
+}
+
+OPHook3(ABBindingRef, CreateWithCompositeComponents, ABBindingRef, foreground, ABBindingRef, background, BOOL, flag) {
+    return ABPairBindingsWithURL(OPOldCall(foreground, background, flag), NULL);
+}
+
+OPHook2(ABBindingRef, CreateWithSideFaultFile, CFURLRef, url, BOOL, flag) {
+    return ABPairBindingsWithURL(OPOldCall(url, flag), (__bridge NSURL *)(url));
+}
+
+
 OPInitialize {
-    if (ABIsInQuickLook() ||!ABIsSupportedVersion())
+    if (ABIsInQuickLook() || !ABIsSupportedVersion())
         return;
     
     void *image = OPGetImageByName("/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices");
-
-    IconResourceWithBinding = OPFindSymbol(image, "__ZN12IconResource10initializeEP9LSContextP9LSBindingy");
-    OPHookFunction(IconResourceWithBinding);
-    
-    IconResourceWithFileInfo = OPFindSymbol(image, "__ZN12IconResourceC1EPK10__CFStringS2_y");
-    OPHookFunction(IconResourceWithFileInfo);
-    
-    IconResourceWithURL = OPFindSymbol(image, "__ZN12IconResourceC1EPKvy");
-    OPHookFunction(IconResourceWithURL);
-    
-    IconResourceWithBundle = OPFindSymbol(image, "__ZN12IconResourceC2EPK7__CFURLPK10__CFStringyy");
-    OPHookFunction(IconResourceWithBundle);
-    
-    IconResourceWithTypeInfo = OPFindSymbol(image, "__ZN12IconResourceC2Ejy");
-    OPHookFunction(IconResourceWithTypeInfo);
     
     ABBindingMethods.ReleaseBinding = OPFindSymbol(image, "__ZN14BindingManager7ReleaseEP7Bindingb");
     ABBindingMethods.RetainBinding  = OPFindSymbol(image, "__ZN14BindingManager6RetainEP7Bindingb");
@@ -215,11 +297,99 @@ OPInitialize {
             .volumeIconBundleIdentifier = 0x48,
             .volumeIconResourceName     = 0x50,
             .iconResourceURL            = 0x0,
-            .iconResourceFlags          = 0x8
+            .iconResourceFlags          = 0x8,
+            .valid                      = YES
+            
+        };
+        
+        ABBindingPropertyOffsets = offs;
+    } else if (ABLaunchServicesVersionEquals(ABLaunchServicesVersion10110b1)) {
+        struct _ABPropertyOffsets offs = {
+            .iconRef                    = 0x8,
+            .variantType                = 0x48,
+            .variantBinding             = 0x40,
+            .linkResolvedBinding        = 0x68, // changed
+            .linkURL                    = 0x58,
+            .compositeForeground        = 0x40,
+            .compositeBackground        = 0x48,
+            .bundleURL                  = 0x40,
+            .fileInfoExtension          = 0x40,
+            .volumeIconBundleIdentifier = 0x48,
+            .volumeIconResourceName     = 0x50,
+            .iconResourceURL            = 0x0,
+            .iconResourceFlags          = 0x8,
+            .valid                      = YES
+            
+        };
+        
+        ABBindingPropertyOffsets = offs;
+    } else {
+        struct _ABPropertyOffsets offs = {
+            .iconRef                    = 0x0,
+            .variantType                = 0x0,
+            .variantBinding             = 0x0,
+            .linkResolvedBinding        = 0x0,
+            .linkURL                    = 0x0,
+            .compositeForeground        = 0x0,
+            .compositeBackground        = 0x0,
+            .bundleURL                  = 0x0,
+            .fileInfoExtension          = 0x0,
+            .volumeIconBundleIdentifier = 0x0,
+            .volumeIconResourceName     = 0x0,
+            .iconResourceURL            = 0x0,
+            .iconResourceFlags          = 0x0,
+            .valid                      = NO
         };
         
         ABBindingPropertyOffsets = offs;
     }
+    
+    if (!ABBindingPropertyOffsets.valid) {
+        ABLog("Your OS Version isn't certified to work with AutumnBoard.");
+        return;
+    }
+    
+    IconResourceWithBinding = OPFindSymbol(image, "__ZN12IconResource10initializeEP9LSContextP9LSBindingy");
+    OPHookFunction(IconResourceWithBinding);
+    
+    IconResourceWithFileInfo = OPFindSymbol(image, "__ZN12IconResourceC1EPK10__CFStringS2_y");
+    OPHookFunction(IconResourceWithFileInfo);
+    
+    IconResourceWithURL = OPFindSymbol(image, "__ZN12IconResourceC1EPKvy");
+    OPHookFunction(IconResourceWithURL);
+    
+    IconResourceWithBundle = OPFindSymbol(image, "__ZN12IconResourceC2EPK7__CFURLPK10__CFStringyy");
+    OPHookFunction(IconResourceWithBundle);
+    
+    IconResourceWithTypeInfo = OPFindSymbol(image, "__ZN12IconResourceC2Ejy");
+    OPHookFunction(IconResourceWithTypeInfo);
+    
+    CreateWithBookmarkData        = OPFindSymbol(image, "__ZN14BindingManager22CreateWithBookmarkDataEPK8__CFDatab");
+    CreateWithResourceURL         = OPFindSymbol(image, "__ZN14BindingManager21CreateWithResourceURLEPK7__CFURLb");
+    CreateWithTypeInfo            = OPFindSymbol(image, "__ZN14BindingManager18CreateWithTypeInfoEjjPK10__CFStringb");
+    CreateWithFileInfo            = OPFindSymbol(image, "__ZN14BindingManager18CreateWithFileInfoEPK5FSRefmPKtjPK13FSCatalogInfob");
+    CreateWithURL                 = OPFindSymbol(image, "__ZN14BindingManager13CreateWithURLEPK7__CFURLb");
+    CreateWithUTI                 = OPFindSymbol(image, "__ZN14BindingManager13CreateWithUTIEPK10__CFStringb");
+    CreateWithAliasData           = OPFindSymbol(image, "__ZN14BindingManager19CreateWithAliasDataEPK8__CFDatab");
+    CreateWithFolder              = OPFindSymbol(image, "__ZN14BindingManager16CreateWithFolderEsiiaab");
+    CreateWithLegacyIconRef       = OPFindSymbol(image, "__ZN14BindingManager23CreateWithLegacyIconRefEP13OpaqueIconRefb");
+    CreateWithDeviceID            = OPFindSymbol(image, "__ZN14BindingManager18CreateWithDeviceIDEPKcb");
+    CreateVariant                 = OPFindSymbol(image, "__ZN14BindingManager13CreateVariantEP7Bindingyyb");
+    CreateWithCompositeComponents = OPFindSymbol(image, "__ZN14BindingManager29CreateWithCompositeComponentsEP7BindingS1_b");
+    CreateWithSideFaultFile = OPFindSymbol(image, "__ZN14BindingManager23CreateWithSideFaultFileEPK7__CFURLb");
+    CreateWithData = OPFindSymbol(image, "__ZN14BindingManager14CreateWithDataEPK8__CFDatab");
+    
+    OPHookFunction(CreateWithDeviceID);
+    OPHookFunction(CreateWithTypeInfo);
+    OPHookFunction(CreateWithFolder);
+    OPHookFunction(CreateWithAliasData);
+    OPHookFunction(CreateWithBookmarkData);
+    OPHookFunction(CreateWithURL);
+    OPHookFunction(CreateWithFileInfo);
+    OPHookFunction(CreateWithUTI);
+    OPHookFunction(CreateVariant);
+    OPHookFunction(CreateWithCompositeComponents);
+    OPHookFunction(CreateWithSideFaultFile);
 }
 
 // We sitll need this functionality for absolutes to work
@@ -257,11 +427,11 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
         }
     }
     
+    
     if (customURL && class != ABBindingClassComposite) {
         customURL = [NSURL URLByResolvingAliasFileAtURL:customURL options:NSURLBookmarkResolutionWithoutUI error:nil] ?: customURL;
 
         ABBindingRef custom = CreateWithResourceURL((__bridge CFURLRef)[customURL URLByResolvingSymlinksInPath], YES);
-
         if (custom) {
             // Since these types call back for sidebar implementations we need to make
             // hax by preserving their type and re-registering their icon
@@ -276,13 +446,13 @@ void *ABPairBindingsWithURL(ABBindingRef binding, NSURL *url) {
             } else {
                 ABBindingOverride(binding, custom);
             }
+            
         }
     } else if (class == ABBindingClassComposite) {
         // recursively apply icons as appropriate to each of the composite's parts
         ABPairBindingsWithURL(ABCompositeBindingGetForegroundBinding(binding), NULL);
         ABPairBindingsWithURL(ABCompositeBindingGetBackgroundBinding(binding), NULL);
     }
-    
     return binding;
 }
 
