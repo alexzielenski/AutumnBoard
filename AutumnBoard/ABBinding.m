@@ -89,7 +89,6 @@ static struct _ABBindingMethods {
 // make for interesting possibilities
 void (*IconResourceWithTypeInfo)(void *, void *, UInt64);
 OPHook3(void, IconResourceWithTypeInfo, void *, this, OSType, type, UInt64, flags) {
-    ABLog("With type info");
     OPOldCall(this, type, flags);
 
     NSURL *custom = customIconForOSType(ABStringFromOSType(type));
@@ -106,7 +105,6 @@ OPHook3(void, IconResourceWithTypeInfo, void *, this, OSType, type, UInt64, flag
 
 void (*IconResourceWithBundle)(void *, CFURLRef, CFStringRef, UInt64);
 OPHook4(void, IconResourceWithBundle, void *, this, CFURLRef, url, CFStringRef, name, UInt64, flags) {
-    ABLog("With bundle");
     OPOldCall(this, url, name, flags);
 
     NSBundle *bndl = [NSBundle bundleWithURL:((__bridge NSURL *)url)];
@@ -120,7 +118,6 @@ OPHook4(void, IconResourceWithBundle, void *, this, CFURLRef, url, CFStringRef, 
 
 void (*IconResourceWithURL)(void *, CFURLRef, UInt64);
 OPHook3(void, IconResourceWithURL, void *, this, CFURLRef, url, UInt64, flags) {
-    ABLog("With url");
     if ([(__bridge NSURL *)url isKindOfClass:[NSURL class]]) {
         NSURL *replacement = replacementURLForURL((__bridge NSURL *)url);
         if (replacement)
@@ -132,7 +129,6 @@ OPHook3(void, IconResourceWithURL, void *, this, CFURLRef, url, UInt64, flags) {
 
 void (*IconResourceWithFileInfo)(void *, CFStringRef, CFStringRef, UInt64);
 OPHook4(void, IconResourceWithFileInfo, void *, this, CFStringRef, uti, CFStringRef, conformance, UInt64, flags) {
-    ABLog("With file info");
     OPOldCall(this, uti, conformance, flags);
 
     NSURL *custom = customIconForUTI((__bridge NSString *)uti);
