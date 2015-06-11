@@ -26,7 +26,7 @@ CFRelease(_formatted); \
 syslog(level, "%s", _utf8); \
 } while (false)
 
-#define ABLog(FORMAT, ...) OPLog(OPLogLevelNotice, FORMAT, ## __VA_ARGS__)
+#define ABLog(FORMAT, ...) OPLog(OPLogLevelNotice, "AutumnBoard: " FORMAT, ## __VA_ARGS__)
 #define ABLogBinding(BINDING) ABLog("%@ [%p]", ABBindingCopyDescription(BINDING), BINDING);
 
 #endif
